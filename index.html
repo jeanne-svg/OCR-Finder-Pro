@@ -7,9 +7,7 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-
 <title>OCR Finder Pro V3</title>
-
 
 <!-- OCR辨識引擎 -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
@@ -39,8 +37,6 @@ body {
     padding: 20px;
 
 }
-
-
 
 /* =========================
    標題
@@ -87,54 +83,39 @@ video {
 
 }
 
-
-
 /* =========================
    IC 掃描框
 ========================= */
 
 #scanFrame {
 
-
     /* 疊在相機上方 */
     position: absolute;
-
 
     /* 水平位置 */
     left: 25%;
 
-
     /* 垂直位置 */
     top: 40%;
-
 
     /* 框大小 */
     width: 50%;
 
-
     height: 20%;
-
 
     /* 綠色框線 */
 
     border: 3px solid #00ff00;
 
-
     /* 不影響點擊 */
 
     pointer-events:none;
 
-
 }
-
-
-
-
 
 /* =========================
    按鈕
 ========================= */
-
 
 button {
 
@@ -150,12 +131,9 @@ button {
 
 }
 
-
-
 /* =========================
    標準文字輸入
 ========================= */
-
 
 /*
 
@@ -173,58 +151,37 @@ X017
 
 */
 
-
 textarea {
-
 
     width:85%;
 
-
     height:100px;
-
 
     font-size:20px;
 
-
     padding:10px;
-
 
     border-radius:10px;
 
-
 }
-
-
-
-
-
 
 /* =========================
    OCR結果顯示
 ========================= */
 
-
 .resultBox {
-
 
     background:#222;
 
-
     padding:15px;
-
 
     margin-top:15px;
 
-
     border-radius:10px;
-
 
     text-align:left;
 
-
     font-size:20px;
-
-
 
     /*
       保留換行
@@ -233,68 +190,43 @@ textarea {
 
     white-space:pre-line;
 
-
 }
-
-
-
-
-
 
 /* =========================
    OK / NG 顯示
 ========================= */
 
-
 #status {
-
 
     font-size:50px;
 
-
     font-weight:bold;
-
 
     margin:20px;
 
-
-
 }
-
 
 .okFlash {
 
-
     background:#008000;
 
-
 }
-
-
 
 .ngFlash {
 
-
     background:#990000;
-
 
 }
 
-
 </style>
-
 
 </head>
 
-
 <body>
-
 
 <!-- 系統名稱 -->
 
 <h1>🔍 OCR Finder Pro V3</h1>
-
-
 
 <!-- OK / NG 狀態顯示 -->
 
@@ -304,39 +236,29 @@ textarea {
 
 </div>
 
-
 <!-- 辨識文字顯示在狀態區下面 -->
 
 <div id="ocrResult" class="resultBox">
 
 </div>
    
-
 <!-- =========================
      相機區域
 ========================= -->
 
-
 <div id="cameraBox">
-
 
     <!-- 手機後鏡頭畫面 -->
 
     <video id="video" autoplay playsinline></video>
 
-
-
     <!-- IC文字掃描範圍 -->
 
     <div id="scanFrame"></div>
 
-
 </div>
 
-
-
 <br>
-
 
 <!-- 開啟相機 -->
 
@@ -346,17 +268,13 @@ textarea {
 
 </button>
 
-
 <!-- 開始 OCR -->
-
 
 <!-- =========================
      標準文字設定區
 ========================= -->
 
-
 <h3>📌 標準文字</h3>
-
 
 <!--
 使用 textarea
@@ -373,9 +291,7 @@ X017
      多筆標準文字管理
 ========================= -->
 
-
 <h3>📌 標準文字清單</h3>
-
 
 <!-- 輸入新的IC標準 -->
 
@@ -388,11 +304,7 @@ H5CG46AGBD
 X017">
 </textarea>
 
-
-
 <br>
-
-
 
 <button onclick="addStandard()">
 
@@ -400,18 +312,13 @@ X017">
 
 </button>
 
-
-
 <button onclick="deleteStandard()">
 
 🗑 刪除
 
 </button>
 
-
-
 <h4>已儲存清單</h4>
-
 
 <!-- 顯示目前所有標準 -->
 
@@ -423,14 +330,11 @@ class="resultBox">
 
 </div>
 
-
-
 <!-- =========================
      OCR結果
 ========================= -->
 
 <script>
-
 
 /*
 
@@ -440,41 +344,30 @@ class="resultBox">
 
 */
 
-
 // 取得相機元件
 
 const video =
 document.getElementById("video");
-
 
 // 暫存圖片
 
 let canvas =
 document.createElement("canvas");
 
-
 // Canvas繪圖工具
 
 let ctx =
 canvas.getContext("2d");
-
-
 
 // 儲存標準文字
 
 let standardText =
 localStorage.getItem("standardText") || "";
 
-
-
 // 載入之前保存的標準文字
 
 document.getElementById("standardInput").value =
 standardText;
-
-
-
-
 
 /*
 
@@ -484,12 +377,9 @@ standardText;
 
 */
 
-
 async function openCamera(){
 
-
 try{
-
 
     // 呼叫手機後鏡頭
 
@@ -504,56 +394,34 @@ try{
 
     });
 
-
-
     // 將影像放入video
 
     video.srcObject =
     stream;
 
-
-
 }
 catch(error){
-
 
     alert(
     "相機開啟失敗，請確認瀏覽器權限"
     );
-
-
 }
-
-
-
 }
-
-
-
-
-
-
 
 /*
 
 =========================
 保存標準文字
-
 =========================
 
 */
 
-
 function saveStandard(){
-
-
 
     // 取得textarea內容
 
     standardText =
     document.getElementById("standardInput").value;
-
-
 
     // 保存到手機瀏覽器
 
@@ -562,22 +430,11 @@ function saveStandard(){
         standardText
     );
 
-
-
     alert(
     "標準文字已保存"
     );
 
-
-
 }
-
-
-
-
-
-
-
 
 /*
 
@@ -587,21 +444,15 @@ function saveStandard(){
 
 */
 
-
 function captureImage(){
-
-
 
     // 設定圖片大小
 
     canvas.width =
     video.videoWidth;
 
-
     canvas.height =
     video.videoHeight;
-
-
 
     // 將相機畫面畫入Canvas
 
@@ -616,18 +467,9 @@ function captureImage(){
         canvas.width,
 
         canvas.height
-
     );
-
-
-
 }
-
-
-
-
-
-
+   
 /*
 
 =========================
@@ -642,11 +484,9 @@ IC雷雕字通常較淡
 =========================
 
 */
-
+昂
 
 function enhanceImage(){
-
-
 
     let imageData =
     ctx.getImageData(
@@ -658,23 +498,16 @@ function enhanceImage(){
         canvas.width,
 
         canvas.height
-
-    );
-
-
+);
 
     let data =
     imageData.data;
-
-
 
     for(
         let i=0;
         i<data.length;
         i+=4
     ){
-
-
 
         // RGB平均值
 
@@ -689,9 +522,6 @@ function enhanceImage(){
 
         ) / 3;
 
-
-
-
         // 黑白化
 
         let value =
@@ -701,19 +531,12 @@ function enhanceImage(){
         :
         0;
 
-
-
         data[i]=value;
 
         data[i+1]=value;
 
         data[i+2]=value;
-
-
-
     }
-
-
 
     ctx.putImageData(
 
@@ -722,19 +545,14 @@ function enhanceImage(){
         0,
 
         0
-
-    );
-
-
+ );
 }
 
 <!-- =========================
      OCR功能
 ========================= -->
 
-
 <script>
-
 
 /*
 
@@ -753,42 +571,26 @@ function enhanceImage(){
 
 */
 
-
 async function startOCR(){
-
-
 
     // 確認相機是否開啟
 
     if(video.videoWidth === 0){
 
-
         alert(
         "請先開啟相機"
         );
 
-
         return;
-
-
     }
-
-
-
 
     // 擷取目前影像
 
     captureImage();
 
-
-
     // 圖片強化
 
     enhanceImage();
-
-
-
-
 
     // 使用Tesseract OCR
 
@@ -799,24 +601,16 @@ async function startOCR(){
         canvas,
 
         "eng",
-
-        {
+      {
 
             // 英數辨識
 
             logger:function(info){
 
                 console.log(info);
-
             }
-
         }
-
     );
-
-
-
-
 
     // 取得OCR文字
 
@@ -824,17 +618,9 @@ async function startOCR(){
 
     result.data.text.trim();
 
-
-
-
-
     // 清理文字格式
 
     text = cleanText(text);
-
-
-
-
 
     // 顯示辨識結果
 
@@ -842,24 +628,10 @@ async function startOCR(){
         "ocrResult"
     ).innerText = text;
 
-
-
-
-
     // 開始比對
 
     checkResult(text);
-
-
-
 }
-
-
-
-
-
-
-
 
 /*
 
@@ -872,12 +644,9 @@ OCR容易產生：
 
 SKhynix
 
-
 H5CG46AGBD
 
-
 X017
-
 
 中間多空白
 
@@ -889,10 +658,7 @@ X017
 
 */
 
-
 function cleanText(text){
-
-
 
     return text
 
@@ -900,33 +666,21 @@ function cleanText(text){
 
     .split("\n")
 
-
     // 移除空白行
 
     .map(
         line => line.trim()
     )
 
-
     .filter(
         line => line !== ""
     )
-
 
     // 保留原本三行
 
     .join("\n");
 
-
-
 }
-
-
-
-
-
-
-
 
 /*
 
@@ -945,41 +699,24 @@ function cleanText(text){
 
 */
 
-
 function normalizeText(text){
 
-
-
     return text
-
 
     // 大小寫統一
 
     .toUpperCase()
 
-
     // 每行去除頭尾空白
 
     .split("\n")
-
 
     .map(
         line => line.trim()
     )
 
-
     .join("\n");
-
-
-
 }
-
-
-
-
-
-
-
 
 /*
 
@@ -1001,84 +738,57 @@ SKHYNIX
 H5CG46AGBD
 X017
 
-
 判定 OK
 
 =========================
 
 */
-
-
-
+   
 function checkResult(text){
 
     let scanText =
     normalizeText(text);
-
 
     if(standardList.length === 0){
 
         showNG();
 
         return;
-
     }
-
 
     for(let item of standardList){
 
         let targetText =
         normalizeText(item);
 
-
         if(scanText === targetText){
 
             showOK();
 
             return;
-
-        }
-
-    }
-
-
-    showNG();
-
+     }
 }
-
-
-
+    showNG();
+}
 
     if(
         scanText === targetText
     ){
 
-
         showOK();
-
-
     }
 
     else{
 
-
         showNG();
-
-
     }
-
-
-
 }
 
-  
 <!-- =========================
      OK / NG 控制
 ========================= -->
 
-
 <script>
-
 
 /*
 
@@ -1102,15 +812,11 @@ OK
 
 */
 
-
 let lastResult = "";
-
-
 
 // =========================
 // 多筆標準文字資料
 // =========================
-
 
 // 從手機讀取之前保存的清單
 
@@ -1121,16 +827,11 @@ JSON.parse(
 localStorage.getItem(
 "standardList"
 )
-
 ) || [];
-
-
-
 
 // 顯示清單
 
 function updateStandardList(){
-
 
 let box =
 
@@ -1138,21 +839,13 @@ document.getElementById(
 "standardListView"
 );
 
-
-
 if(standardList.length === 0){
-
 
 box.innerText =
 "尚無資料";
 
-
 return;
-
-
 }
-
-
 
 box.innerText =
 
@@ -1163,34 +856,23 @@ standardList
 (item,index)=>
 
 "【"+(index+1)+"】\n"+item
-
 )
 
 .join(
 
 "\n\n"
-
 );
-
-
-
 }
-
-
 
 // 新增標準文字
 
 function addStandard(){
-
-
 
 let text =
 
 document.getElementById(
 "standardInput"
 ).value;
-
-
 
 if(
 text.trim()===""
@@ -1200,18 +882,10 @@ alert(
 "請輸入標準文字"
 );
 
-
 return;
-
-
 }
 
-
-
-
 standardList.push(text);
-
-
 
 // 保存
 
@@ -1222,10 +896,7 @@ localStorage.setItem(
 JSON.stringify(
 standardList
 )
-
 );
-
-
 
 // 清空輸入
 
@@ -1233,39 +904,23 @@ document.getElementById(
 "standardInput"
 ).value="";
 
-
-
 // 更新畫面
 
 updateStandardList();
-
-
-
 }
-
-
-
-
 
 // 刪除最後一筆
 
 function deleteStandard(){
-
-
 
 if(
 standardList.length===0
 ){
 
 return;
-
 }
 
-
-
 standardList.pop();
-
-
 
 localStorage.setItem(
 
@@ -1274,18 +929,10 @@ localStorage.setItem(
 JSON.stringify(
 standardList
 )
-
 );
 
-
-
 updateStandardList();
-
-
-
 }
-
-
 
 /*
 
@@ -1300,24 +947,16 @@ updateStandardList();
 
 */
 
-
 function showOK(){
-
-
 
     // 如果上次也是OK
 
     if(lastResult === "OK"){
 
         return;
-
     }
 
-
-
     lastResult = "OK";
-
-
 
     let status =
 
@@ -1325,46 +964,25 @@ function showOK(){
         "status"
     );
 
-
-
     status.innerText =
     "🟩 OK";
-
-
 
     status.classList.add(
         "okFlash"
     );
 
-
-
     setTimeout(function(){
-
-
 
         status.classList.remove(
             "okFlash"
         );
 
-
-
         status.innerText =
         "等待掃描";
 
-
-
     },500);
 
-
-
 }
-
-
-
-
-
-
-
 
 /*
 
@@ -1379,24 +997,16 @@ function showOK(){
 
 */
 
-
 function showNG(){
-
-
 
     // 如果上次也是NG
 
     if(lastResult === "NG"){
 
         return;
-
     }
 
-
-
     lastResult = "NG";
-
-
 
     let status =
 
@@ -1404,46 +1014,24 @@ function showNG(){
         "status"
     );
 
-
-
     status.innerText =
     "🟥 NG";
-
-
 
     status.classList.add(
         "ngFlash"
     );
 
-
-
     setTimeout(function(){
-
-
 
         status.classList.remove(
             "ngFlash"
         );
 
-
-
         status.innerText =
         "等待掃描";
 
-
-
     },500);
-
-
-
 }
-
-
-
-
-
-
-
 
 /*
 
@@ -1460,45 +1048,27 @@ function showNG(){
 
 */
 
-
 function saveScreenshot(){
 
-
-
     // 建立圖片連結
-
 
     let link =
     document.createElement(
         "a"
     );
 
-
-
     link.download =
     "OCR_Image.jpg";
-
-
 
     link.href =
     canvas.toDataURL(
         "image/jpeg"
     );
-
-
-
+   
     // 自動下載
 
     link.click();
-
-
-
 }
-
-
-
-
-
 
 /*
 
@@ -1511,13 +1081,7 @@ function saveScreenshot(){
 
 */
 
-
 function resetResult(){
 
-
-
     lastResult = "";
-
-
-
 }
