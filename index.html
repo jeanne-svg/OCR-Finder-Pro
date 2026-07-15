@@ -1,417 +1,183 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>OCR Finder Pro V3</title>
+<title>OCR Finder Pro</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
-
-*{
-box-sizing:border-box;
-}
-
 body{
-margin:0;
-padding:20px;
-background:#111;
-color:white;
-font-family:Arial,"Microsoft JhengHei",sans-serif;
-text-align:center;
-transition:0.2s;
-}
-
-h1{
-font-size:28px;
-}
-
-#result{
-font-size:60px;
-font-weight:bold;
-padding:20px;
-margin-bottom:10px;
-border-radius:15px;
-}
-
-
-.okFlash{
-background:#00a000 !important;
-}
-
-
-.ngFlash{
-background:#b00000 !important;
-}
-
-
-.card{
-background:#222;
-padding:15px;
-margin:15px 0;
-border-radius:15px;
+    background:#111;
+    color:white;
+    font-family:Arial;
+    text-align:center;
+    padding:20px;
 }
 
 video{
-    width:70%;
-    max-width:350px;
+    width:100%;
+    max-width:500px;
     border-radius:15px;
-    border:2px solid #555;
 }
-
-
-
-#ocrText,
-#standardText{
-
-background:#000;
-padding:15px;
-border-radius:10px;
-text-align:left;
-white-space:pre-line;
-font-size:20px;
-min-height:80px;
-
-}
-
 
 button{
-
-font-size:18px;
-padding:12px 18px;
-margin:5px;
-border-radius:10px;
-border:none;
-
+    font-size:18px;
+    padding:12px;
+    margin:8px;
+    border-radius:10px;
 }
-
 
 input{
-
-width:90%;
-font-size:18px;
-padding:10px;
-border-radius:8px;
-
+    font-size:18px;
+    padding:10px;
+    width:80%;
 }
 
-textarea{
-width:90%;
-height:100px;
-font-size:18px;
-padding:10px;
-border-radius:8px;
+#status{
+    font-size:50px;
+    padding:20px;
 }
 
-
-#scanArea{
-
-position:relative;
-display:inline-block;
-
+.flashGreen{
+    background:#00aa00;
 }
 
-#frame{
-
-position:absolute;
-left:30%;
-top:40%;
-width:40%;
-height:20%;
-border:3px solid #00ff00;
-pointer-events:none;
-
+.flashRed{
+    background:#aa0000;
 }
 
-  
+#ocr{
+    background:#222;
+    padding:15px;
+    white-space:pre-line;
+    text-align:left;
+}
 </style>
 
 </head>
 
-
 <body>
 
+<h1>🔍 OCR Finder Pro</h1>
 
-<h1>🔍 OCR Finder Pro V3</h1>
 
-
-<div id="result">
+<div id="status">
 等待掃描
 </div>
 
 
-<div class="card">
-
-<div id="scanArea">
-
 <video id="video" autoplay playsinline></video>
-
-<div id="frame"></div>
-
-</div>
-
 
 <br>
 
-
-<button onclick="openCamera()">
+<button onclick="startCamera()">
 📷 開啟相機
 </button>
 
-
-<button onclick="captureOCR()">
+<button onclick="scan()">
 🔍 開始辨識
 </button>
 
 
-<button onclick="saveImage()">
-📸 截圖
-</button>
+<h3>設定標準文字</h3>
 
-
-</div>
-
-
-<div class="card">
-
-<h3>📄 OCR辨識結果</h3>
-
-<div id="ocrText">
-等待...
-</div>
-
-
-</div>
-
-
-<div class="card">
-
-<h3>📌 標準文字</h3>
-
-
-<textarea id="standardInput"
-placeholder="輸入標準文字"></textarea>
+<input id="standard"
+placeholder="例如 SK H5z3Hjk 1234">
 
 
 <br>
 
-
 <button onclick="saveStandard()">
-儲存標準
+📌 儲存標準
 </button>
 
 
-<div id="standardText">
-尚未設定
+<h3>辨識結果</h3>
+
+<div id="ocr">
+等待...
 </div>
 
-
-</div>
 
 
 <script>
 
-let video = document.getElementById("video");
-
-let canvas = document.createElement("canvas");
-
-let ctx = canvas.getContext("2d");
+let video =
+document.getElementById("video");
 
 
-let standardText = 
-localStorage.getItem("ocr_standard") || "";
+let standard =
+localStorage.getItem("standard") || "";
 
-
-document.getElementById("standardText").innerText =
-standardText || "尚未設定";
+document.getElementById("standard").value =
+standard;
 
 
 
-async function openCamera(){
+async function startCamera(){
 
-try{
-
-let stream = await navigator.mediaDevices.getUserMedia({
+let stream =
+await navigator.mediaDevices.getUserMedia({
 
 video:{
-facingMode:"environment",
-width:{
-ideal:1920
-},
-height:{
-ideal:1080
-}
-
+facingMode:"environment"
 }
 
 });
 
-
 video.srcObject = stream;
 
-
-}catch(e){
-
-alert("無法開啟相機\n請確認 Safari 相機權限");
-
 }
-
-}
-
-
 
 
 
 function saveStandard(){
 
-standardText =
-document.getElementById("standardInput").value;
-
+standard =
+document.getElementById("standard").value;
 
 localStorage.setItem(
-"ocr_standard",
-standardText
+"standard",
+standard
 );
 
-
-document.getElementById("standardText").innerText =
-standardText;
-
-
-alert("標準文字已保存");
+alert("標準已保存");
 
 }
 
 
 
+async function scan(){
 
-
-
-function prepareImage(){
-
+let canvas =
+document.createElement("canvas");
 
 canvas.width =
 video.videoWidth;
-
 
 canvas.height =
 video.videoHeight;
 
 
+let ctx =
+canvas.getContext("2d");
+
 
 ctx.drawImage(
-
 video,
-
-0,
-
-0,
-
-canvas.width,
-
-canvas.height
-
-);
-
-
-
-// 灰階 + 增加對比
-
-let imageData =
-ctx.getImageData(
-
-0,
-
-0,
-
-canvas.width,
-
-canvas.height
-
-);
-
-
-
-let data =
-imageData.data;
-
-
-
-for(let i=0;i<data.length;i+=4){
-
-
-let avg =
-(data[i]+data[i+1]+data[i+2])/3;
-
-
-
-avg =
-avg > 128 ? 255 : 0;
-
-
-
-data[i]=avg;
-
-data[i+1]=avg;
-
-data[i+2]=avg;
-
-
-}
-
-
-
-ctx.putImageData(
-imageData,
 0,
 0
 );
 
 
 
-}
-
-
-
-
-
-async function captureOCR(){
-
-
-if(video.videoWidth===0){
-
-alert("請先開啟相機");
-
-return;
-
-}
-
-
-
-prepareImage();
-
-
-
 let result =
 await Tesseract.recognize(
-
 canvas,
-
-"eng",
-
-{
-
-logger:m=>{
-
-console.log(m);
-
-}
-
-}
-
+"eng"
 );
 
 
@@ -420,490 +186,98 @@ let text =
 result.data.text.trim();
 
 
-
-document.getElementById("ocrText").innerText =
-text || "無法辨識";
-
+document.getElementById("ocr").innerText =
+text;
 
 
-checkResult(text);
-
-
+check(text);
 
 }
 
 
 
-function normalize(text){
+function normalize(t){
 
-
-return text
-
+return t
 .toUpperCase()
-
-.replace(/\s/g,"")
-
-.replace(/\n/g,"");
-
+.replace(/\s/g,"");
 
 }
 
 
 
+function check(text){
 
-
-function checkResult(text){
-
-
-let now =
-normalize(text);
-
-
-let target =
-normalize(standardText);
+let ok =
+normalize(text)
+.includes(
+normalize(standard)
+);
 
 
 
-if(target==="" ){
-
-showNG();
-
-return;
-
-}
-
-
-
-if(now.includes(target)){
-
+if(ok){
 
 showOK();
 
-
 }else{
-
 
 showNG();
 
+}
 
 }
 
 
-
-}
 
 function showOK(){
 
-
 let box =
-document.getElementById("result");
+document.getElementById("status");
 
 
 box.innerText="🟩 OK";
 
-
-box.classList.add("okFlash");
-
+document.body.className="flashGreen";
 
 
 setTimeout(()=>{
 
-
-box.classList.remove("okFlash");
-
-
+document.body.className="";
 box.innerText="等待掃描";
-
 
 },300);
 
 
-
 }
-
 
 
 
 function showNG(){
 
-
 let box =
-document.getElementById("result");
+document.getElementById("status");
 
 
 box.innerText="🟥 NG";
 
-
-box.classList.add("ngFlash");
-
+document.body.className="flashRed";
 
 
 setTimeout(()=>{
 
-
-box.classList.remove("ngFlash");
-
-
+document.body.className="";
 box.innerText="等待掃描";
-
 
 },300);
 
 
-
 }
 
 
-
-
-
-
-
-function saveImage(){
-
-
-if(video.videoWidth===0){
-
-alert("請先開啟相機");
-
-return;
-
-}
-
-
-
-let tempCanvas =
-document.createElement("canvas");
-
-
-tempCanvas.width =
-video.videoWidth;
-
-
-tempCanvas.height =
-video.videoHeight;
-
-
-
-let tempCtx =
-tempCanvas.getContext("2d");
-
-
-
-tempCtx.drawImage(
-
-video,
-
-0,
-
-0
-
-);
-
-
-
-let link =
-document.createElement("a");
-
-
-link.download =
-"OCR_Check.jpg";
-
-
-link.href =
-tempCanvas.toDataURL(
-"image/jpeg"
-);
-
-
-link.click();
-
-
-
-}
-
-
-
-
-
-
-
-// 防止同一顆 IC 一直重複判定
-
-let lastResult="";
-
-
-
-function checkResult(text){
-
-
-let now =
-normalize(text);
-
-
-let target =
-normalize(standardText);
-
-
-
-if(target===""){
-
-return;
-
-}
-
-
-
-let result =
-now.includes(target)
-?
-"OK"
-:
-"NG";
-
-
-
-if(result===lastResult){
-
-return;
-
-}
-
-
-
-lastResult=result;
-
-
-
-if(result==="OK"){
-
-showOK();
-
-}else{
-
-showNG();
-
-}
-
-
-
-}
-
-
-
-
-
-
-
-
-// 重新設定標準時清除狀態
-
-function resetCheck(){
-
-
-lastResult="";
-
-
-}
-
-// 自動掃描控制
-
-let autoScan=false;
-
-let scanTimer=null;
-
-
-
-function startAutoScan(){
-
-
-if(autoScan){
-
-return;
-
-}
-
-
-autoScan=true;
-
-
-
-scanTimer=setInterval(()=>{
-
-
-captureOCR();
-
-
-},1500);
-
-
-
-}
-
-
-
-
-function stopAutoScan(){
-
-
-autoScan=false;
-
-
-if(scanTimer){
-
-clearInterval(scanTimer);
-
-scanTimer=null;
-
-}
-
-
-}
-
-
-
-
-
-
-// 點擊相機畫面開始後可使用
-
-video.addEventListener(
-
-"click",
-
-()=>{
-
-
-if(autoScan){
-
-stopAutoScan();
-
-}else{
-
-
-startAutoScan();
-
-
-}
-
-
-}
-
-);
-
-
-
-
-
-
-// 頁面離開停止相機
-
-window.addEventListener(
-
-"beforeunload",
-
-()=>{
-
-
-stopAutoScan();
-
-
-
-if(video.srcObject){
-
-
-video.srcObject
-.getTracks()
-.forEach(
-track=>track.stop()
-);
-
-
-}
-
-
-}
-
-);
-
-
-
-
-
-// 顯示目前設定
-
-function showSetting(){
-
-
-document.getElementById("standardText")
-.innerText =
-standardText || "尚未設定";
-
-
-}
-
-
-
-showSetting();
-
-// V3 Core 完成初始化
-
-document.getElementById("standardInput").value =
-standardText;
-
-
-// 開啟相機後自動準備
-
-video.onloadedmetadata = function(){
-
-console.log("Camera Ready");
-
-};
-
-
-// 清除標準
-
-function clearStandard(){
-
-standardText="";
-
-localStorage.removeItem(
-"ocr_standard"
-);
-
-
-document.getElementById("standardText").innerText =
-"尚未設定";
-
-
-document.getElementById("standardInput").value="";
-
-
-lastResult="";
-
-
-}
-
-
-// 測試按鍵支援
-
-document.addEventListener(
-"keydown",
-function(e){
-
-if(e.key===" "){
-
-captureOCR();
-
-}
-
-}
-);
 
 </script>
 
 
 </body>
-
 </html>
-
