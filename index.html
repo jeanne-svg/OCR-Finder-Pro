@@ -1,39 +1,44 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
 <head>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>OCR Finder Pro</title>
 
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 <style>
-body {
-    font-family: Arial, sans-serif;
-    text-align: center;
+
+body{
+    font-family:Arial;
+    text-align:center;
     background:#111;
     color:white;
     padding:20px;
 }
 
-input {
+input{
     width:80%;
     padding:12px;
     font-size:18px;
     border-radius:10px;
-    border:none;
 }
 
-button {
-    padding:10px 20px;
-    margin:10px;
+button{
+    padding:12px 20px;
+    margin:8px;
     font-size:18px;
     border-radius:10px;
 }
 
-li {
+video{
+    width:100%;
+    margin-top:20px;
+}
+
+li{
     list-style:none;
     background:#222;
     margin:8px;
@@ -41,18 +46,26 @@ li {
     border-radius:8px;
 }
 
-.delete {
+.delete{
+    float:right;
     background:red;
     color:white;
-    float:right;
 }
+
+#status{
+    font-size:50px;
+    margin-top:20px;
+}
+
 </style>
 
 </head>
 
+
 <body>
 
 <h1>🔍 OCR Finder Pro</h1>
+
 
 <h3>新增檢查文字</h3>
 
@@ -65,9 +78,13 @@ li {
 </button>
 
 
-<h3>目前清單</h3>
+<h3>文字清單</h3>
 
 <ul id="list"></ul>
+
+
+<hr>
+
 
 <h3>📷 相機掃描</h3>
 
@@ -75,118 +92,262 @@ li {
 開啟相機
 </button>
 
-<br>
 
-<video id="camera"
+<video id="camera" autoplay playsinline></video>
 
-<h3>🔍 辨識結果</h3>
+
+<h3>辨識結果</h3>
 
 <div id="ocrText">
 等待掃描...
 </div>
 
+
 <div id="status">
 </div>
-    
-width="100%"
-autoplay
-playsinline>
-</video>
-    
+
+
+
 <script>
 
-let items = JSON.parse(localStorage.getItem("ocrList")) || [];
+
+let items =
+JSON.parse(localStorage.getItem("ocrList")) || [];
+
 
 
 function save(){
 
-    localStorage.setItem(
-        "ocrList",
-        JSON.stringify(items)
-    );
+localStorage.setItem(
+"ocrList",
+JSON.stringify(items)
+);
 
 }
+
 
 
 function showList(){
 
-    let list =
-    document.getElementById("list");
+let list =
+document.getElementById("list");
 
-    list.innerHTML="";
+list.innerHTML="";
 
 
-    items.forEach(function(item,index){
+items.forEach(function(item,index){
 
-        let li=document.createElement("li");
+let li=document.createElement("li");
 
-        li.innerHTML =
-        item +
-        '<button class="delete" onclick="deleteText('+index+')">刪除</button>';
+li.innerHTML =
+item +
+' <button class="delete" onclick="deleteText('+index+')">刪除</button>';
 
-        list.appendChild(li);
+list.appendChild(li);
 
-    });
+});
 
 }
+
 
 
 function addText(){
 
-    let input =
-    document.getElementById("textInput");
+let input =
+document.getElementById("textInput");
 
 
-    let value=input.value.trim();
+let value =
+input.value.trim();
 
 
-    if(value){
+if(value){
 
-        items.push(value);
+items.push(value);
 
-        save();
+save();
 
-        showList();
+showList();
 
-        input.value="";
-
-    }
+input.value="";
 
 }
+
+}
+
 
 
 function deleteText(index){
 
-    items.splice(index,1);
+items.splice(index,1);
 
-    save();
+save();
 
-    showList();
+showList();
 
 }
+
 
 
 showList();
 
+
+
+let video =
+document.getElementById("camera");
+
+
+
 function openCamera(){
 
-    navigator.mediaDevices.getUserMedia({
-        video:{
-            facingMode:"environment"
-        }
-    })
-    .then(function(stream){
+navigator.mediaDevices.getUserMedia({
 
-        document.getElementById("camera").srcObject = stream;
+video:{
+facingMode:"environment"
+}
 
-    })
-    .catch(function(error){
+})
 
-        alert("無法開啟相機：" + error);
+.then(function(stream){
 
-    });
+video.srcObject=stream;
+
+})
+
+.catch(function(error){
+
+alert(error);
+
+});
 
 }
+
+
+
+
+
+function scanOCR(){
+
+
+if(video.videoWidth===0){
+return;
+}
+
+
+let canvas =
+document.createElement("canvas");
+
+
+canvas.width =
+video.videoWidth;
+
+
+canvas.height =
+video.videoHeight;
+
+
+let ctx =
+canvas.getContext("2d");
+
+
+ctx.drawImage(
+video,
+0,
+0,
+canvas.width,
+canvas.height
+);
+
+
+
+Tesseract.recognize(
+
+canvas,
+
+'eng'
+
+)
+
+.then(function(result){
+
+
+let text =
+result.data.text
+.toUpperCase()
+.replace(/\s/g,'');
+
+
+
+document.getElementById("ocrText").innerHTML =
+text;
+
+
+
+check(text);
+
+
+
+});
+
+
+}
+
+
+
+
+function check(text){
+
+
+let ok =
+items.some(function(item){
+
+return text.includes(
+item.toUpperCase().replace(/\s/g,'')
+);
+
+});
+
+
+
+let status =
+document.getElementById("status");
+
+
+
+if(ok){
+
+status.innerHTML="🟩 OK";
+
+status.style.color="lime";
+
+
+}
+
+else{
+
+status.innerHTML="🟥 NG";
+
+status.style.color="red";
+
+
+if(navigator.vibrate){
+
+navigator.vibrate(500);
+
+}
+
+}
+
+
+}
+
+
+
+
+setInterval(scanOCR,3000);
+
+
+
 </script>
 
 
