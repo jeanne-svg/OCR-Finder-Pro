@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -75,6 +78,16 @@ li {
 <br>
 
 <video id="camera"
+
+<h3>🔍 辨識結果</h3>
+
+<div id="ocrText">
+等待掃描...
+</div>
+
+<div id="status">
+</div>
+    
 width="100%"
 autoplay
 playsinline>
