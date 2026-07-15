@@ -313,28 +313,26 @@ let status =
 document.getElementById("status");
 
 
-
 if(ok){
 
-status.innerHTML="🟩 OK";
+    status.innerHTML="🟩 OK";
+    status.style.color="lime";
 
-status.style.color="lime";
-
-
-}
-
-else{
-
-status.innerHTML="🟥 NG";
-
-status.style.color="red";
+    // OK：震動1下
+    if(navigator.vibrate){
+        navigator.vibrate(200);
+    }
 
 
-if(navigator.vibrate){
+}else{
 
-navigator.vibrate(500);
+    status.innerHTML="🟥 NG";
+    status.style.color="red";
 
-}
+    // NG：連續震動2下
+    if(navigator.vibrate){
+        navigator.vibrate([200,100,200]);
+    }
 
 }
 
