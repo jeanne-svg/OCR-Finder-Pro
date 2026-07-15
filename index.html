@@ -344,11 +344,6 @@ textarea {
 
 <!-- 開始 OCR -->
 
-<button onclick="startOCR()">
-
-🔍 開始辨識
-
-</button>
 
 <!-- =========================
      標準文字設定區
@@ -369,9 +364,23 @@ X017
 並保持換行
 -->
 
-<textarea 
+<!-- =========================
+     多筆標準文字管理
+========================= -->
+
+
+<h3>📌 標準文字清單</h3>
+
+
+<!-- 輸入新的IC標準 -->
+
+<textarea
 id="standardInput"
-placeholder="請貼上標準文字">
+placeholder="請貼上標準文字，例如：
+
+SKhynix
+H5CG46AGBD
+X017">
 </textarea>
 
 
@@ -380,12 +389,34 @@ placeholder="請貼上標準文字">
 
 
 
-<button onclick="saveStandard()">
+<button onclick="addStandard()">
 
-💾 儲存標準
+➕ 新增
 
 </button>
 
+
+
+<button onclick="deleteStandard()">
+
+🗑 刪除
+
+</button>
+
+
+
+<h4>已儲存清單</h4>
+
+
+<!-- 顯示目前所有標準 -->
+
+<div 
+id="standardListView"
+class="resultBox">
+
+尚無資料
+
+</div>
 
 
 
@@ -986,41 +1017,42 @@ X017
 */
 
 
+
 function checkResult(text){
 
-
-
     let scanText =
-
     normalizeText(text);
 
 
-
-
-    let targetText =
-
-    normalizeText(standardText);
-
-
-
-
-
-
-    if(
-        targetText === ""
-    ){
-
+    if(standardList.length === 0){
 
         showNG();
 
-
         return;
-
 
     }
 
 
+    for(let item of standardList){
 
+        let targetText =
+        normalizeText(item);
+
+
+        if(scanText === targetText){
+
+            showOK();
+
+            return;
+
+        }
+
+    }
+
+
+    showNG();
+
+}
 
 
 
@@ -1083,7 +1115,183 @@ let lastResult = "";
 
 
 
+// =========================
+// 多筆標準文字資料
+// =========================
 
+
+// 從手機讀取之前保存的清單
+
+let standardList =
+
+JSON.parse(
+
+localStorage.getItem(
+"standardList"
+)
+
+) || [];
+
+
+
+
+// 顯示清單
+
+function updateStandardList(){
+
+
+let box =
+
+document.getElementById(
+"standardListView"
+);
+
+
+
+if(standardList.length === 0){
+
+
+box.innerText =
+"尚無資料";
+
+
+return;
+
+
+}
+
+
+
+box.innerText =
+
+standardList
+
+.map(
+
+(item,index)=>
+
+"【"+(index+1)+"】\n"+item
+
+)
+
+.join(
+
+"\n\n"
+
+);
+
+
+
+}
+
+
+
+// 新增標準文字
+
+function addStandard(){
+
+
+
+let text =
+
+document.getElementById(
+"standardInput"
+).value;
+
+
+
+if(
+text.trim()===""
+){
+
+alert(
+"請輸入標準文字"
+);
+
+
+return;
+
+
+}
+
+
+
+
+standardList.push(text);
+
+
+
+// 保存
+
+localStorage.setItem(
+
+"standardList",
+
+JSON.stringify(
+standardList
+)
+
+);
+
+
+
+// 清空輸入
+
+document.getElementById(
+"standardInput"
+).value="";
+
+
+
+// 更新畫面
+
+updateStandardList();
+
+
+
+}
+
+
+
+
+
+// 刪除最後一筆
+
+function deleteStandard(){
+
+
+
+if(
+standardList.length===0
+){
+
+return;
+
+}
+
+
+
+standardList.pop();
+
+
+
+localStorage.setItem(
+
+"standardList",
+
+JSON.stringify(
+standardList
+)
+
+);
+
+
+
+updateStandardList();
+
+
+
+}
 
 
 
