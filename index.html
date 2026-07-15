@@ -8,32 +8,40 @@
 
 <style>
 body {
-  font-family: Arial, sans-serif;
-  text-align: center;
-  background: #111;
-  color: white;
-  padding: 30px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background:#111;
+    color:white;
+    padding:20px;
 }
 
-h1 {
-  font-size: 32px;
+input {
+    width:80%;
+    padding:12px;
+    font-size:18px;
+    border-radius:10px;
+    border:none;
 }
 
-.box {
-  margin-top: 40px;
-  padding: 30px;
-  border-radius: 15px;
-  background: #222;
+button {
+    padding:10px 20px;
+    margin:10px;
+    font-size:18px;
+    border-radius:10px;
 }
 
-.ok {
-  color: #00ff66;
-  font-size: 50px;
+li {
+    list-style:none;
+    background:#222;
+    margin:8px;
+    padding:10px;
+    border-radius:8px;
 }
 
-.ng {
-  color: red;
-  font-size: 50px;
+.delete {
+    background:red;
+    color:white;
+    float:right;
 }
 </style>
 
@@ -43,49 +51,100 @@ h1 {
 
 <h1>🔍 OCR Finder Pro</h1>
 
-<div class="box">
+<h3>新增檢查文字</h3>
 
-<p>文字掃描檢查</p>
-  
-<button onclick="openCamera()">
-📷 開啟相機
-  
+<input id="textInput" placeholder="例如 ABC123">
+
+<br>
+
+<button onclick="addText()">
+➕ 新增
 </button>
 
-<video id="camera" autoplay playsinline></video>
-<p class="ok">
-  
-準備完成
-</p>
 
-<p>
-🟩 OK（不震動）<br>
-🟥 NG（震動）
-</p>
+<h3>目前清單</h3>
 
-</div>
+<ul id="list"></ul>
+
 
 <script>
-function openCamera() {
 
-navigator.mediaDevices.getUserMedia({
-    video: {
-        facingMode: "environment"
-    }
-})
-.then(function(stream){
+let items = JSON.parse(localStorage.getItem("ocrList")) || [];
 
-    document.getElementById("camera").srcObject = stream;
 
-})
-.catch(function(error){
+function save(){
 
-    alert("無法開啟相機：" + error);
-
-});
+    localStorage.setItem(
+        "ocrList",
+        JSON.stringify(items)
+    );
 
 }
+
+
+function showList(){
+
+    let list =
+    document.getElementById("list");
+
+    list.innerHTML="";
+
+
+    items.forEach(function(item,index){
+
+        let li=document.createElement("li");
+
+        li.innerHTML =
+        item +
+        '<button class="delete" onclick="deleteText('+index+')">刪除</button>';
+
+        list.appendChild(li);
+
+    });
+
+}
+
+
+function addText(){
+
+    let input =
+    document.getElementById("textInput");
+
+
+    let value=input.value.trim();
+
+
+    if(value){
+
+        items.push(value);
+
+        save();
+
+        showList();
+
+        input.value="";
+
+    }
+
+}
+
+
+function deleteText(index){
+
+    items.splice(index,1);
+
+    save();
+
+    showList();
+
+}
+
+
+showList();
+
+
 </script>
-  
+
+
 </body>
 </html>
