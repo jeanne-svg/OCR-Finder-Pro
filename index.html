@@ -155,7 +155,25 @@ function deleteText(index){
 
 showList();
 
+function openCamera(){
 
+    navigator.mediaDevices.getUserMedia({
+        video:{
+            facingMode:"environment"
+        }
+    })
+    .then(function(stream){
+
+        document.getElementById("camera").srcObject = stream;
+
+    })
+    .catch(function(error){
+
+        alert("無法開啟相機：" + error);
+
+    });
+
+}
 </script>
 
 
