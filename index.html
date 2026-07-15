@@ -46,8 +46,15 @@ h1 {
 <div class="box">
 
 <p>文字掃描檢查</p>
+  
+<button onclick="openCamera()">
+📷 開啟相機
+  
+</button>
 
+<video id="camera" autoplay playsinline></video>
 <p class="ok">
+  
 準備完成
 </p>
 
@@ -58,5 +65,27 @@ h1 {
 
 </div>
 
+<script>
+function openCamera() {
+
+navigator.mediaDevices.getUserMedia({
+    video: {
+        facingMode: "environment"
+    }
+})
+.then(function(stream){
+
+    document.getElementById("camera").srcObject = stream;
+
+})
+.catch(function(error){
+
+    alert("無法開啟相機：" + error);
+
+});
+
+}
+</script>
+  
 </body>
 </html>
