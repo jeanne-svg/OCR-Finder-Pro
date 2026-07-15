@@ -6,54 +6,48 @@
 
 <title>OCR Finder Pro</title>
 
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
 <style>
-body{
-    background:#111;
-    color:white;
-    font-family:Arial;
-    text-align:center;
-    padding:20px;
+body {
+  font-family: Arial, sans-serif;
+  text-align: center;
+  background: #111;
+  color: white;
+  margin: 0;
+  padding: 20px;
 }
 
-video{
-    width:100%;
-    max-width:500px;
-    border-radius:15px;
+h1 {
+  margin-top: 20px;
 }
 
-button{
-    font-size:18px;
-    padding:12px;
-    margin:8px;
-    border-radius:10px;
+input {
+  width: 85%;
+  padding: 12px;
+  font-size: 20px;
+  border-radius: 10px;
+  border: none;
 }
 
-input{
-    font-size:18px;
-    padding:10px;
-    width:80%;
+button {
+  margin-top: 20px;
+  padding: 12px 30px;
+  font-size: 18px;
+  border-radius: 10px;
+  border: none;
 }
 
-#status{
-    font-size:50px;
-    padding:20px;
+#result {
+  margin-top: 40px;
+  font-size: 50px;
+  font-weight: bold;
 }
 
-.flashGreen{
-    background:#00aa00;
+.ok {
+  color: #00ff66;
 }
 
-.flashRed{
-    background:#aa0000;
-}
-
-#ocr{
-    background:#222;
-    padding:15px;
-    white-space:pre-line;
-    text-align:left;
+.ng {
+  color: red;
 }
 </style>
 
@@ -63,221 +57,19 @@ input{
 
 <h1>🔍 OCR Finder Pro</h1>
 
+<p>設定要搜尋文字</p>
 
-<div id="status">
+<input id="target" value="ABC123">
+
+<br>
+
+<button>
+📷 開始掃描
+</button>
+
+<div id="result">
 等待掃描
 </div>
-
-
-<video id="video" autoplay playsinline></video>
-
-<br>
-
-<button onclick="startCamera()">
-📷 開啟相機
-</button>
-
-<button onclick="scan()">
-🔍 開始辨識
-</button>
-
-
-<h3>設定標準文字</h3>
-
-<input id="standard"
-placeholder="例如 SK H5z3Hjk 1234">
-
-
-<br>
-
-<button onclick="saveStandard()">
-📌 儲存標準
-</button>
-
-
-<h3>辨識結果</h3>
-
-<div id="ocr">
-等待...
-</div>
-
-
-
-<script>
-
-let video =
-document.getElementById("video");
-
-
-let standard =
-localStorage.getItem("standard") || "";
-
-document.getElementById("standard").value =
-standard;
-
-
-
-async function startCamera(){
-
-let stream =
-await navigator.mediaDevices.getUserMedia({
-
-video:{
-facingMode:"environment"
-}
-
-});
-
-video.srcObject = stream;
-
-}
-
-
-
-function saveStandard(){
-
-standard =
-document.getElementById("standard").value;
-
-localStorage.setItem(
-"standard",
-standard
-);
-
-alert("標準已保存");
-
-}
-
-
-
-async function scan(){
-
-let canvas =
-document.createElement("canvas");
-
-canvas.width =
-video.videoWidth;
-
-canvas.height =
-video.videoHeight;
-
-
-let ctx =
-canvas.getContext("2d");
-
-
-ctx.drawImage(
-video,
-0,
-0
-);
-
-
-
-let result =
-await Tesseract.recognize(
-canvas,
-"eng"
-);
-
-
-
-let text =
-result.data.text.trim();
-
-
-document.getElementById("ocr").innerText =
-text;
-
-
-check(text);
-
-}
-
-
-
-function normalize(t){
-
-return t
-.toUpperCase()
-.replace(/\s/g,"");
-
-}
-
-
-
-function check(text){
-
-let ok =
-normalize(text)
-.includes(
-normalize(standard)
-);
-
-
-
-if(ok){
-
-showOK();
-
-}else{
-
-showNG();
-
-}
-
-}
-
-
-
-function showOK(){
-
-let box =
-document.getElementById("status");
-
-
-box.innerText="🟩 OK";
-
-document.body.className="flashGreen";
-
-
-setTimeout(()=>{
-
-document.body.className="";
-box.innerText="等待掃描";
-
-},300);
-
-
-}
-
-
-
-function showNG(){
-
-let box =
-document.getElementById("status");
-
-
-box.innerText="🟥 NG";
-
-document.body.className="flashRed";
-
-
-setTimeout(()=>{
-
-document.body.className="";
-box.innerText="等待掃描";
-
-},300);
-
-
-}
-
-
-
-</script>
-
 
 </body>
 </html>
