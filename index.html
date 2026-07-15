@@ -5,56 +5,42 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<title>OCR Finder Pro</title>
+<title>OCR Finder Pro V2</title>
 
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
 <style>
 
 body{
-    font-family:Arial;
-    text-align:center;
-    background:#111;
-    color:white;
-    padding:20px;
-}
-
-input{
-    width:80%;
-    padding:12px;
-    font-size:18px;
-    border-radius:10px;
+font-family:Arial;
+text-align:center;
+background:#111;
+color:white;
+padding:20px;
 }
 
 button{
-    padding:12px 20px;
-    margin:8px;
-    font-size:18px;
-    border-radius:10px;
+font-size:18px;
+padding:12px 20px;
+margin:8px;
+border-radius:10px;
 }
 
 video{
-    width:100%;
-    margin-top:20px;
+width:100%;
+margin-top:20px;
 }
 
-li{
-    list-style:none;
-    background:#222;
-    margin:8px;
-    padding:10px;
-    border-radius:8px;
+#result{
+font-size:45px;
+margin:20px;
 }
 
-.delete{
-    float:right;
-    background:red;
-    color:white;
-}
-
-#status{
-    font-size:50px;
-    margin-top:20px;
+.box{
+background:#222;
+padding:15px;
+border-radius:12px;
+margin-top:20px;
 }
 
 </style>
@@ -64,46 +50,73 @@ li{
 
 <body>
 
-<h1>🔍 OCR Finder Pro</h1>
+
+<h1>🔍 OCR Finder Pro V2</h1>
 
 
-<h3>新增檢查文字</h3>
+<div class="box">
 
-<input id="textInput" placeholder="例如 ABC123">
+<h3>📌 標準文字</h3>
+
+<input id="standardInput"
+placeholder="輸入標準文字">
 
 <br>
 
-<button onclick="addText()">
-➕ 新增
+<button onclick="saveStandard()">
+保存標準
 </button>
 
+<p id="standardShow">
+未設定
+</p>
 
-<h3>文字清單</h3>
-
-<ul id="list"></ul>
-
-
-<hr>
+</div>
 
 
-<h3>📷 相機掃描</h3>
+
+<div class="box">
+
+<h3>📷 掃描</h3>
+
 
 <button onclick="openCamera()">
 開啟相機
 </button>
 
 
-<video id="camera" autoplay playsinline></video>
+<button onclick="takePhoto()">
+截圖
+</button>
 
 
-<h3>辨識結果</h3>
+<button onclick="scanOCR()">
+開始檢查
+</button>
 
-<div id="ocrText">
-等待掃描...
+
+<video id="video" autoplay playsinline></video>
+
+
 </div>
 
 
-<div id="status">
+
+<div class="box">
+
+<h3>OCR結果</h3>
+
+<div id="text">
+等待...
+</div>
+
+
+</div>
+
+
+
+<div id="result">
+
 </div>
 
 
@@ -111,94 +124,47 @@ li{
 <script>
 
 
-let items =
-JSON.parse(localStorage.getItem("ocrList")) || [];
+let video =
+document.getElementById("video");
+
+
+let standard =
+localStorage.getItem("standard") || "";
 
 
 
-function save(){
+if(standard){
+
+standardShow.innerHTML =
+standard;
+
+}
+
+
+
+
+function saveStandard(){
+
+standard =
+document.getElementById("standardInput").value;
+
 
 localStorage.setItem(
-"ocrList",
-JSON.stringify(items)
+"standard",
+standard
 );
 
-}
 
+document.getElementById("standardShow").innerHTML =
+standard;
 
-
-function showList(){
-
-let list =
-document.getElementById("list");
-
-list.innerHTML="";
-
-
-items.forEach(function(item,index){
-
-let li=document.createElement("li");
-
-li.innerHTML =
-item +
-' <button class="delete" onclick="deleteText('+index+')">刪除</button>';
-
-list.appendChild(li);
-
-});
 
 }
-
-
-
-function addText(){
-
-let input =
-document.getElementById("textInput");
-
-
-let value =
-input.value.trim();
-
-
-if(value){
-
-items.push(value);
-
-save();
-
-showList();
-
-input.value="";
-
-}
-
-}
-
-
-
-function deleteText(index){
-
-items.splice(index,1);
-
-save();
-
-showList();
-
-}
-
-
-
-showList();
-
-
-
-let video =
-document.getElementById("camera");
 
 
 
 function openCamera(){
+
 
 navigator.mediaDevices.getUserMedia({
 
@@ -208,30 +174,18 @@ facingMode:"environment"
 
 })
 
-.then(function(stream){
+.then(stream=>{
 
 video.srcObject=stream;
 
 })
 
-.catch(function(error){
-
-alert(error);
-
-});
-
 }
 
 
 
 
-
-function scanOCR(){
-
-
-if(video.videoWidth===0){
-return;
-}
+function takePhoto(){
 
 
 let canvas =
@@ -249,47 +203,98 @@ video.videoHeight;
 let ctx =
 canvas.getContext("2d");
 
-ctx.filter = "contrast(200%) grayscale(100%)";
 
 ctx.drawImage(
 video,
 0,
+0
+);
+
+
+let link =
+document.createElement("a");
+
+
+link.download =
+"IC_check.jpg";
+
+
+link.href =
+canvas.toDataURL();
+
+
+link.click();
+
+
+}
+
+
+
+async function scanOCR(){
+
+
+let canvas =
+document.createElement("canvas");
+
+
+canvas.width =
+video.videoWidth;
+
+
+canvas.height =
+video.videoHeight;
+
+
+let ctx =
+canvas.getContext("2d");
+
+
+// 增強文字
+ctx.filter =
+"grayscale(100%) contrast(200%)";
+
+
+ctx.drawImage(
+video,
 0,
-canvas.width,
-canvas.height
+0
 );
 
 
 
-Tesseract.recognize(
+let result =
+await Tesseract.recognize(
 
 canvas,
 
 'eng'
 
-)
+);
 
-.then(function(result){
 
 
 let text =
-result.data.text
-.toUpperCase()
-.replace(/\s/g,'');
+result.data.text.trim();
 
 
 
-document.getElementById("ocrText").innerHTML =
-text;
+document.getElementById("text").innerHTML =
+text.replace(/\n/g,"<br>");
 
 
 
 check(text);
 
 
+}
 
-});
 
+
+function normalize(t){
+
+return t
+.toUpperCase()
+.replace(/\s/g,'');
 
 }
 
@@ -300,50 +305,48 @@ function check(text){
 
 
 let ok =
-items.some(function(item){
-
-return text.includes(
-item.toUpperCase().replace(/\s/g,'')
+normalize(text)
+.includes(
+normalize(standard)
 );
 
-});
 
 
+let result =
+document.getElementById("result");
 
-let status =
-document.getElementById("status");
 
 
 if(ok){
 
-    status.innerHTML="🟩 OK";
-    status.style.color="lime";
 
-    // OK：震動1下
-    if(navigator.vibrate){
-        navigator.vibrate(200);
-    }
+result.innerHTML="🟩 OK";
+
+
+if(navigator.vibrate){
+
+navigator.vibrate(200);
+
+}
 
 
 }else{
 
-    status.innerHTML="🟥 NG";
-    status.style.color="red";
 
-    // NG：連續震動2下
-    if(navigator.vibrate){
-        navigator.vibrate([200,100,200]);
-    }
+result.innerHTML="🟥 NG";
+
+
+if(navigator.vibrate){
+
+navigator.vibrate([200,100,200]);
+
+}
+
 
 }
 
 
 }
-
-
-
-
-setInterval(scanOCR,3000);
 
 
 
