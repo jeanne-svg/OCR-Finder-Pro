@@ -72,7 +72,7 @@
   .cam-placeholder p{ color:var(--text-dim); font-size:12.5px; margin:0; }
 
   .scan-frame{
-    position:absolute; left:12%; top:22%; width:56%; height:56%;
+    position:absolute; left:12%; top:22%; width:76%; height:56%;
     border:3px solid var(--idle); border-radius:14px; transition:border-color .25s, box-shadow .25s;
     box-shadow:0 0 0 2000px rgba(0,0,0,.38);
     pointer-events:none;
@@ -498,8 +498,11 @@
     worker = await Tesseract.createWorker("eng", 1, {
       logger: () => {}
     });
+    
+    // 【修正點 1】 改用穩定適配單個文字塊的 PSM 6，並加入極為重要的大寫英文與數字白名單過濾亂碼
     await worker.setParameters({
-      tessedit_pageseg_mode: "11"
+      tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-_/.",
+      tessedit_pageseg_mode: "6"
     });
     workerReady = true;
     setStatus("scanning", "掃描中", "自動掃描中...");
@@ -550,15 +553,50 @@
     return { sx, sy, sw, sh };
   }
 
+  // 【修正點 2】實作原生 JavaScript 像素級「高相容灰階與動態閾值二值化」
   function captureCroppedCanvas(){
     const rect = getCropRect();
     if(!rect) return null;
-    const upscale = 2;
+    const upscale = 2.5; // 放大像素提高清晰度
     captureCanvas.width = Math.max(1, Math.round(rect.sw * upscale));
     captureCanvas.height = Math.max(1, Math.round(rect.sh * upscale));
     const ctx = captureCanvas.getContext("2d");
-    ctx.filter = "grayscale(1) contrast(1.8) brightness(1.15) sharpen(1)"; 
+    
+    // 繪製原始畫面
     ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
+    
+    try {
+      const imgData = ctx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
+      const data = imgData.data;
+      const len = data.length;
+      
+      // 第一階段：計算平均灰階亮度，用作動態閾值基礎
+      let totalGray = 0;
+      for (let i = 0; i < len; i += 4) {
+        // 標準灰階轉換公式：Y = 0.299R + 0.587G + 0.114B
+        const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+        totalGray += gray;
+      }
+      const avgGray = totalGray / (len / 4);
+      
+      // 根據平均亮度，動態決定最優二值化界限（避免太亮或太暗導致字體肥大或碎裂）
+      const threshold = Math.max(85, Math.min(avgGray * 1.15, 165)); 
+
+      // 第二階段：套用二值化
+      for (let i = 0; i < len; i += 4) {
+        const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+        const binaryValue = (gray > threshold) ? 255 : 0; 
+        data[i] = binaryValue;     // R
+        data[i+1] = binaryValue;   // G
+        data[i+2] = binaryValue;   // B
+      }
+      ctx.putImageData(imgData, 0, 0);
+    } catch(e) {
+      console.warn("手動二值化失敗，使用預設濾鏡備用方案:", e);
+      ctx.filter = "grayscale(1) contrast(2) brightness(1.1)";
+      ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
+    }
+
     return captureCanvas;
   }
 
@@ -587,7 +625,11 @@
   }
 
   function cleanText(t){
-    return t.split("\n").map(l => l.trim()).filter(l => l.length > 0).join("\n");
+    // 過濾非白名單產生的零碎亂字（如單個零散字元），保留大於 1 個字元的行
+    return t.split("\n")
+            .map(l => l.trim())
+            .filter(l => l.length > 1) 
+            .join("\n");
   }
 
   function handleOcrResult(rawText){
