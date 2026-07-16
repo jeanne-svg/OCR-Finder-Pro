@@ -480,7 +480,7 @@
     captureCanvas.width = Math.max(1, Math.round(rect.sw * upscale));
     captureCanvas.height = Math.max(1, Math.round(rect.sh * upscale));
     const ctx = captureCanvas.getContext("2d");
-    ctx.filter = "grayscale(1) contrast(1.35) brightness(1.05)";
+    ctx.filter = "grayscale(1) contrast(1.8) brightness(1.15) sharpen(1)"; //"grayscale(1) contrast(1.35) brightness(1.05)";
     ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
     return captureCanvas;
   }
