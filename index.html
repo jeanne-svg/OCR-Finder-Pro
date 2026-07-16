@@ -285,12 +285,7 @@
   const OCR_INTERVAL_IDLE = 300;
   const OCR_INTERVAL_LOCKED = 300;
   const EMPTY_STREAK_TO_RESET = 3;
-  await worker.setParameters({
-    tessedit_pageseg_mode: "11",
-    preserve_interword_spaces: "1"
-});
-ctx.filter =
-"grayscale(1) contrast(1.8) brightness(1.15) sharpen(1)";
+  const MIN_TEXT_LEN = 3;
   // ---------- elements ----------
   const video = document.getElementById("video");
   const camPlaceholder = document.getElementById("camPlaceholder");
