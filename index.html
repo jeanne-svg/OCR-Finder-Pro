@@ -72,7 +72,7 @@
   .cam-placeholder p{ color:var(--text-dim); font-size:12.5px; margin:0; }
 
   .scan-frame{
-    position:absolute; left:12%; top:22%; width:76%; height:56%;
+    position:absolute; left:13%; top:22%; width:75%; height:57%;
     border:3px solid var(--idle); border-radius:14px; transition:border-color .25s, box-shadow .25s;
     box-shadow:0 0 0 2000px rgba(0,0,0,.38);
     pointer-events:none;
@@ -170,8 +170,10 @@
   }
   .std-item-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
   .std-item-head b{ font-size:13px; }
+  .std-item-actions{ display:flex; gap:8px; }
   .std-item pre{ margin:0; font-family:var(--mono); font-size:11.5px; color:var(--text-dim); white-space:pre-wrap; }
-  .del-btn{ background:none; border:none; color:var(--bad); cursor:pointer; font-size:11.5px; font-family:var(--sans); padding:2px 6px; }
+  .del-btn{ background:none; border:none; color:var(--bad); cursor:pointer; font-size:11.5px; font-family:var(--sans); padding:2px 4px; }
+  .edit-btn{ background:none; border:none; color:var(--accent); cursor:pointer; font-size:11.5px; font-family:var(--sans); padding:2px 4px; }
 
   .toast{
     position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px); opacity:0;
@@ -257,7 +259,7 @@
       <div style="margin-top:12px;">
         <input type="text" id="stdNameInput" placeholder="標準文字名稱（例：STM32F103C8T6）">
         <textarea id="stdTextInput" placeholder="貼上多行標準文字，逐行比對&#10;例：&#10;STM32F103C8T6&#10;GENUINE CHIP&#10;2024 ABCD"></textarea>
-        <div class="row">
+        <div class="row" id="editorActionsRow">
           <button class="btn primary" id="addStdBtn">新增標準文字</button>
         </div>
         <div style="margin-top:14px;" id="stdList"></div>
@@ -280,7 +282,7 @@
   let stream = null;
   let videoTrack = null;
   let hasHardwareZoom = false;
-  let zoomLevel = 1.0; // 範圍 1.0 至 4.0
+  let zoomLevel = 1.0; 
   const ZOOM_MIN = 1.0;
   const ZOOM_MAX = 4.0;
   const ZOOM_STEP = 0.5;
@@ -289,7 +291,7 @@
   let workerReady = false;
   let ocrTimer = null;
   let isRecognizing = false;
-  let state = "idle"; // idle | locked
+  let state = "idle"; 
   let emptyStreak = 0;
   let lastResultText = "";
 
@@ -297,6 +299,9 @@
   const OCR_INTERVAL_LOCKED = 300;
   const EMPTY_STREAK_TO_RESET = 3;
   const MIN_TEXT_LEN = 3;
+
+  // 記錄目前正在修改的標準文字索引，null 代表新增模式
+  let editingIndex = null;
 
   // ---------- elements ----------
   const video = document.getElementById("video");
@@ -323,6 +328,7 @@
   const stdNameInput = document.getElementById("stdNameInput");
   const stdTextInput = document.getElementById("stdTextInput");
   const addStdBtn = document.getElementById("addStdBtn");
+  const editorActionsRow = document.getElementById("editorActionsRow");
   const stdList = document.getElementById("stdList");
   const toast = document.getElementById("toast");
   const captureCanvas = document.getElementById("captureCanvas");
@@ -339,6 +345,8 @@
   function saveStandards(){
     localStorage.setItem(STORAGE_KEY, JSON.stringify(standards));
   }
+
+  // 渲染標準文字列表（新增了修改按鈕與事件連結）
   function renderStdList(){
     if(standards.length === 0){
       stdList.innerHTML = '<div class="placeholder-dim">尚未新增任何標準文字。</div>';
@@ -348,29 +356,104 @@
     standards.forEach((s, idx) => {
       const div = document.createElement("div");
       div.className = "std-item";
+      
       const head = document.createElement("div");
       head.className = "std-item-head";
+      
       const b = document.createElement("b");
       b.textContent = s.name || ("未命名 " + (idx+1));
+      
+      const actions = document.createElement("div");
+      actions.className = "std-item-actions";
+      
+      // 修改按鈕
+      const edit = document.createElement("button");
+      edit.className = "edit-btn";
+      edit.textContent = "修改";
+      edit.onclick = () => {
+        enterEditMode(idx);
+      };
+      
+      // 刪除按鈕
       const del = document.createElement("button");
       del.className = "del-btn";
       del.textContent = "刪除";
       del.onclick = () => {
+        if(editingIndex === idx){
+          exitEditMode(); // 如果正在編輯這一筆，先退出編輯模式
+        }
         standards.splice(idx, 1);
         saveStandards();
         renderStdList();
+        showToast("已刪除該標準文字");
       };
+      
+      actions.appendChild(edit);
+      actions.appendChild(del);
       head.appendChild(b);
-      head.appendChild(del);
+      head.appendChild(actions);
+      
       const pre = document.createElement("pre");
       pre.textContent = s.text;
+      
       div.appendChild(head);
       div.appendChild(pre);
       stdList.appendChild(div);
     });
   }
 
-  addStdBtn.addEventListener("click", () => {
+  // 進入編輯模式，將資料載入至上方
+  function enterEditMode(index) {
+    editingIndex = index;
+    const target = standards[index];
+    stdNameInput.value = target.name;
+    stdTextInput.value = target.text;
+    
+    // 捲動至輸入區以便用戶修改
+    settingsDetails.open = true;
+    stdNameInput.scrollIntoView({ behavior:"smooth", block:"center" });
+    stdNameInput.focus();
+
+    // 重新渲染動作按鈕列 (改為儲存與取消)
+    editorActionsRow.innerHTML = `
+      <button class="btn primary" id="saveStdBtn">儲存修改</button>
+      <button class="btn ghost" id="cancelEditBtn">取消修改</button>
+    `;
+
+    // 繫結編輯後的事件
+    document.getElementById("saveStdBtn").onclick = saveEdit;
+    document.getElementById("cancelEditBtn").onclick = exitEditMode;
+  }
+
+  // 退出編輯模式，還原回一般新增按鈕
+  function exitEditMode() {
+    editingIndex = null;
+    stdNameInput.value = "";
+    stdTextInput.value = "";
+    editorActionsRow.innerHTML = `<button class="btn primary" id="addStdBtn">新增標準文字</button>`;
+    // 重新將事件綁回
+    document.getElementById("addStdBtn").onclick = addNewStandard;
+  }
+
+  // 儲存修改內容
+  function saveEdit() {
+    if(editingIndex === null) return;
+    const name = stdNameInput.value.trim();
+    const text = stdTextInput.value.replace(/\r\n/g, "\n").trim();
+    if(!text){ showToast("請輸入標準文字內容"); return; }
+
+    standards[editingIndex] = {
+      name: name || ("標準文字 " + (editingIndex + 1)),
+      text: text
+    };
+    saveStandards();
+    renderStdList();
+    exitEditMode();
+    showToast("修改已儲存");
+  }
+
+  // 新增標準文字
+  function addNewStandard() {
     const name = stdNameInput.value.trim();
     const text = stdTextInput.value.replace(/\r\n/g, "\n").trim();
     if(!text){ showToast("請輸入標準文字內容"); return; }
@@ -380,7 +463,10 @@
     stdNameInput.value = "";
     stdTextInput.value = "";
     showToast("已新增標準文字");
-  });
+  }
+
+  // 初始化首次繫結
+  addStdBtn.addEventListener("click", addNewStandard);
 
   settingsToggle.addEventListener("click", () => {
     settingsDetails.open = !settingsDetails.open;
@@ -418,7 +504,6 @@
       video.srcObject = stream;
       await video.play();
 
-      // 檢查硬體變焦支援度
       const tracks = stream.getVideoTracks();
       if(tracks.length > 0){
         videoTrack = tracks[0];
@@ -450,12 +535,10 @@
     if(!stream) return;
     
     if(hasHardwareZoom && videoTrack){
-      // 硬體變焦處理
-      video.style.transform = "scale(1)"; // 重置 CSS 縮放
+      video.style.transform = "scale(1)"; 
       const capabilities = videoTrack.getCapabilities();
       const min = capabilities.zoom.min || 1;
       const max = capabilities.zoom.max || 3;
-      // 將我們定義的 1.0~4.0 映射到硬體的範圍
       const mappedZoom = min + ((zoomLevel - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN)) * (max - min);
       videoTrack.applyConstraints({
         advanced: [{ zoom: mappedZoom }]
@@ -464,7 +547,6 @@
         video.style.transform = `scale(${zoomLevel})`;
       });
     } else {
-      // 數位變焦（CSS 備援）
       video.style.transform = `scale(${zoomLevel})`;
     }
     
@@ -499,7 +581,6 @@
       logger: () => {}
     });
     
-    // 【修正點 1】 改用穩定適配單個文字塊的 PSM 6，並加入極為重要的大寫英文與數字白名單過濾亂碼
     await worker.setParameters({
       tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-_/.",
       tessedit_pageseg_mode: "6"
@@ -540,7 +621,6 @@
     let sw = boxW * scale;
     let sh = boxH * scale;
 
-    // 如果是數位變焦 (CSS Scale)，OCR 截圖範圍必須反向內縮以精準對齊視覺
     if(!hasHardwareZoom && zoomLevel > 1.0){
       const dW = sw / zoomLevel;
       const dH = sh / zoomLevel;
@@ -553,16 +633,14 @@
     return { sx, sy, sw, sh };
   }
 
-  // 【修正點 2】實作原生 JavaScript 像素級「高相容灰階與動態閾值二值化」
   function captureCroppedCanvas(){
     const rect = getCropRect();
     if(!rect) return null;
-    const upscale = 2.5; // 放大像素提高清晰度
+    const upscale = 2.5; 
     captureCanvas.width = Math.max(1, Math.round(rect.sw * upscale));
     captureCanvas.height = Math.max(1, Math.round(rect.sh * upscale));
     const ctx = captureCanvas.getContext("2d");
     
-    // 繪製原始畫面
     ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
     
     try {
@@ -570,25 +648,20 @@
       const data = imgData.data;
       const len = data.length;
       
-      // 第一階段：計算平均灰階亮度，用作動態閾值基礎
       let totalGray = 0;
       for (let i = 0; i < len; i += 4) {
-        // 標準灰階轉換公式：Y = 0.299R + 0.587G + 0.114B
         const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
         totalGray += gray;
       }
       const avgGray = totalGray / (len / 4);
-      
-      // 根據平均亮度，動態決定最優二值化界限（避免太亮或太暗導致字體肥大或碎裂）
       const threshold = Math.max(85, Math.min(avgGray * 1.15, 165)); 
 
-      // 第二階段：套用二值化
       for (let i = 0; i < len; i += 4) {
         const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
         const binaryValue = (gray > threshold) ? 255 : 0; 
-        data[i] = binaryValue;     // R
-        data[i+1] = binaryValue;   // G
-        data[i+2] = binaryValue;   // B
+        data[i] = binaryValue;     
+        data[i+1] = binaryValue;   
+        data[i+2] = binaryValue;   
       }
       ctx.putImageData(imgData, 0, 0);
     } catch(e) {
@@ -625,7 +698,6 @@
   }
 
   function cleanText(t){
-    // 過濾非白名單產生的零碎亂字（如單個零散字元），保留大於 1 個字元的行
     return t.split("\n")
             .map(l => l.trim())
             .filter(l => l.length > 1) 
