@@ -72,7 +72,7 @@
   .cam-placeholder p{ color:var(--text-dim); font-size:12.5px; margin:0; }
 
   .scan-frame{
-    position:absolute; left:13%; top:22%; width:75%; height:57%;
+    position:absolute; left:12%; top:22%; width:76%; height:56%;
     border:3px solid var(--idle); border-radius:14px; transition:border-color .25s, box-shadow .25s;
     box-shadow:0 0 0 2000px rgba(0,0,0,.38);
     pointer-events:none;
@@ -346,7 +346,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(standards));
   }
 
-  // 渲染標準文字列表（新增了修改按鈕與事件連結）
+  // 渲染標準文字列表（含修改與刪除功能）
   function renderStdList(){
     if(standards.length === 0){
       stdList.innerHTML = '<div class="placeholder-dim">尚未新增任何標準文字。</div>';
@@ -380,7 +380,7 @@
       del.textContent = "刪除";
       del.onclick = () => {
         if(editingIndex === idx){
-          exitEditMode(); // 如果正在編輯這一筆，先退出編輯模式
+          exitEditMode(); 
         }
         standards.splice(idx, 1);
         saveStandards();
@@ -402,40 +402,36 @@
     });
   }
 
-  // 進入編輯模式，將資料載入至上方
+  // 進入編輯模式
   function enterEditMode(index) {
     editingIndex = index;
     const target = standards[index];
     stdNameInput.value = target.name;
     stdTextInput.value = target.text;
     
-    // 捲動至輸入區以便用戶修改
     settingsDetails.open = true;
     stdNameInput.scrollIntoView({ behavior:"smooth", block:"center" });
     stdNameInput.focus();
 
-    // 重新渲染動作按鈕列 (改為儲存與取消)
     editorActionsRow.innerHTML = `
       <button class="btn primary" id="saveStdBtn">儲存修改</button>
       <button class="btn ghost" id="cancelEditBtn">取消修改</button>
     `;
 
-    // 繫結編輯後的事件
     document.getElementById("saveStdBtn").onclick = saveEdit;
     document.getElementById("cancelEditBtn").onclick = exitEditMode;
   }
 
-  // 退出編輯模式，還原回一般新增按鈕
+  // 退出編輯模式
   function exitEditMode() {
     editingIndex = null;
     stdNameInput.value = "";
     stdTextInput.value = "";
     editorActionsRow.innerHTML = `<button class="btn primary" id="addStdBtn">新增標準文字</button>`;
-    // 重新將事件綁回
     document.getElementById("addStdBtn").onclick = addNewStandard;
   }
 
-  // 儲存修改內容
+  // 儲存修改
   function saveEdit() {
     if(editingIndex === null) return;
     const name = stdNameInput.value.trim();
@@ -465,7 +461,6 @@
     showToast("已新增標準文字");
   }
 
-  // 初始化首次繫結
   addStdBtn.addEventListener("click", addNewStandard);
 
   settingsToggle.addEventListener("click", () => {
@@ -581,8 +576,9 @@
       logger: () => {}
     });
     
+    // 嚴格白名單：僅限大寫字母、數字與連字號，徹底不理會 QR Code 誤判的特殊符號
     await worker.setParameters({
-      tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-_/.",
+      tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ- ",
       tessedit_pageseg_mode: "6"
     });
     workerReady = true;
@@ -697,10 +693,12 @@
     }
   }
 
+  // 精準清理並過濾可能源自 QR Code 雜訊的破碎字元
   function cleanText(t){
     return t.split("\n")
             .map(l => l.trim())
-            .filter(l => l.length > 1) 
+            // 過濾掉空行，以及長度小於等於 2 個字元、可能為條碼雜訊的碎片文字
+            .filter(l => l.length > 2) 
             .join("\n");
   }
 
