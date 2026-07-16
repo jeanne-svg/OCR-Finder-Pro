@@ -61,7 +61,7 @@
   video{ width:100%; height:100%; object-fit:cover; display:block; transition: transform 0.1s ease-out; }
   .cam-placeholder{
     position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:14px; background:radial-gradient(circle at 50% 40%, #141a20, #0a0c0f);
+    gap:14px; background:radial-gradient(circle at 50% 40%, #141a20, #0a0c0f); z-index:5;
   }
   .cam-placeholder svg{ opacity:.5; }
   .startbtn{
@@ -70,44 +70,41 @@
   }
   .cam-placeholder p{ color:var(--text-dim); font-size:12.5px; margin:0; }
 
-  /* 稍微收窄感應框，確保只擷取晶片核心文字 */
+  #scanLayer{ position:absolute; left:8%; top:22%; width:84%; height:56%; }
   .scan-frame{
-    position:absolute; left:20%; top:28%; width:60%; height:44%;
-    border:3px solid var(--idle); border-radius:14px; transition:border-color .25s, box-shadow .25s;
-    box-shadow:0 0 0 2000px rgba(0,0,0,.5);
-    pointer-events:none;
+    position:absolute; border:3px solid var(--idle); border-radius:12px;
+    transition:border-color .2s, box-shadow .2s;
+    box-shadow:0 0 0 1200px rgba(0,0,0,.42);
   }
-  .scan-frame::before, .scan-frame::after{
-    content:''; position:absolute; width:22px; height:22px; border-color:inherit;
+  .scan-frame.scanning{ border-color:var(--accent); box-shadow:0 0 0 1200px rgba(0,0,0,.32), 0 0 16px -2px var(--accent); }
+  .scan-frame.ok{ border-color:var(--ok); box-shadow:0 0 0 1200px rgba(0,0,0,.28), 0 0 20px -2px var(--ok); }
+  .scan-frame.warn{ border-color:var(--warn); box-shadow:0 0 0 1200px rgba(0,0,0,.28), 0 0 20px -2px var(--warn); }
+  .scan-frame.bad{ border-color:var(--bad); box-shadow:0 0 0 1200px rgba(0,0,0,.28), 0 0 20px -2px var(--bad); }
+  .slot-label{
+    position:absolute; top:-22px; left:0; font-family:var(--mono); font-size:10.5px; letter-spacing:.04em;
+    color:var(--text); background:rgba(10,12,15,.75); border:1px solid var(--line); padding:2px 8px; border-radius:999px;
   }
-  .scan-frame.scanning{ border-color:var(--accent); box-shadow:0 0 0 2000px rgba(0,0,0,.4), 0 0 18px -2px var(--accent); }
-  .scan-frame.ok{ border-color:var(--ok); box-shadow:0 0 0 2000px rgba(0,0,0,.35), 0 0 22px -2px var(--ok); }
-  .scan-frame.warn{ border-color:var(--warn); box-shadow:0 0 0 2000px rgba(0,0,0,.35), 0 0 22px -2px var(--warn); }
-  .scan-frame.bad{ border-color:var(--bad); box-shadow:0 0 0 2000px rgba(0,0,0,.35), 0 0 22px -2px var(--bad); }
-
-  .scanline{
-    position:absolute; left:2%; width:96%; height:2px; background:linear-gradient(90deg, transparent, var(--accent), transparent);
-    top:8%; opacity:0; pointer-events:none;
-  }
-  .scanline.active{ animation:sweep 1.6s linear infinite; opacity:.9; }
-  @keyframes sweep{ 0%{ top:6%; } 100%{ top:92%; } }
 
   .cam-status{
-    position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:center; pointer-events:none;
+    position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:center; pointer-events:none; z-index:6;
   }
   .cam-status span{
     font-family:var(--mono); font-size:11.5px; letter-spacing:.03em; color:var(--text);
     background:rgba(10,12,15,.8); border:1px solid var(--line); padding:5px 12px; border-radius:999px;
-    text-align:center; min-width:200px;
+    text-align:center;
   }
 
-  .cam-tools{ position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:8px; }
+  .cam-tools{ position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:8px; z-index:6; }
   .cam-tools button{
     width:38px; height:38px; border-radius:10px; border:1px solid rgba(255,255,255,.15);
     background:rgba(10,12,15,.55); backdrop-filter:blur(4px); color:#fff; display:flex; align-items:center;
     justify-content:center; cursor:pointer;
   }
   .cam-tools button:active{ background:rgba(10,12,15,.8); }
+  .zoom-indicator{
+    font-family:var(--mono); font-size:10px; color:var(--text); text-align:center;
+    background:rgba(10,12,15,.55); border-radius:6px; padding:2px 0;
+  }
 
   /* ---- content ---- */
   main{ flex:1; padding:14px 14px 90px; display:flex; flex-direction:column; gap:14px; }
@@ -132,6 +129,7 @@
   }
   .ocr-text.empty{ color:var(--text-dim); font-style:italic; }
   .row{ display:flex; gap:8px; margin-top:10px; }
+  .row:first-child{ margin-top:0; }
   .btn{
     flex:1; border:1px solid var(--line); background:var(--panel-2); color:var(--text); border-radius:10px;
     padding:10px; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--sans);
@@ -140,9 +138,10 @@
   .btn:active{ background:#1e252c; }
   .btn.primary{ background:var(--accent); color:#04211f; border-color:var(--accent); }
   .btn.ghost{ background:transparent; }
+  .btn.active{ background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
   .btn svg{ width:15px; height:15px; }
 
-  .match-name{ font-family:var(--mono); font-size:12.5px; color:var(--accent); margin-bottom:8px; }
+  .match-name{ font-family:var(--mono); font-size:12.5px; color:var(--accent); margin:10px 0 6px; }
 
   .cmp-line{
     display:flex; align-items:flex-start; gap:9px; padding:7px 0; border-bottom:1px dashed var(--line);
@@ -157,7 +156,6 @@
   .cmp-line.mismatch .std{ color:var(--bad); }
   .placeholder-dim{ color:var(--text-dim); font-size:13px; font-family:var(--sans); }
 
-  /* standards manager */
   textarea{
     width:100%; min-height:96px; background:var(--panel-2); color:var(--text); border:1px solid var(--line);
     border-radius:10px; padding:10px 12px; font-family:var(--mono); font-size:13px; resize:vertical;
@@ -185,11 +183,12 @@
 
   canvas{ display:none; }
 
-  details{ }
   details > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; }
   details > summary::-webkit-details-marker{ display:none; }
   .chev{ transition:transform .2s; color:var(--text-dim); }
   details[open] .chev{ transform:rotate(180deg); }
+
+  .section-label{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); font-weight:700; margin:0 0 8px; }
 </style>
 </head>
 <body>
@@ -214,8 +213,7 @@
     <button class="startbtn" id="startBtn">啟動相機</button>
     <p>對準 IC 表面印字，自動開始掃描</p>
   </div>
-  <div class="scan-frame" id="scanFrame"></div>
-  <div class="scanline" id="scanLine"></div>
+  <div id="scanLayer"></div>
   <div class="cam-tools">
     <button id="shotBtn" title="截圖">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
@@ -223,6 +221,7 @@
     <button id="zoomInBtn" title="放大">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
     </button>
+    <div class="zoom-indicator" id="zoomIndicator">1.0x</div>
     <button id="zoomOutBtn" title="縮小">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
     </button>
@@ -231,28 +230,22 @@
 </div>
 
 <main>
-  
-<div class="row" style="margin-top: 0; margin-bottom: 6px;">
-    <button class="btn primary" id="copyBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
-      複製文字
-    </button>
-    <button class="btn ghost" id="resetBtn">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 102.13-9.36L1 10"></path></svg>
-      手動重置
-    </button>
-  </div>
-
-  <div class="card" style="margin-top: 0;">
-    <h2>OCR 辨識結果 <span class="badge" id="ocrBadge">等待中</span></h2>
-    <div class="ocr-text empty" id="ocrText">尚無辨識結果</div>
-  </div>
-
   <div class="card">
-    <h2>比對結果 <span class="badge" id="cmpBadge">—</span></h2>
-    <div class="match-name" id="matchName" style="display:none;"></div>
-    <div id="cmpList"><div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div></div>
+    <p class="section-label">同時掃描顆數</p>
+    <div class="row" id="slotSelectorRow">
+      <button class="btn active" data-count="1">1 顆 IC</button>
+      <button class="btn" data-count="2">2 顆 IC</button>
+      <button class="btn" data-count="3">3 顆 IC</button>
+    </div>
+    <div class="row">
+      <button class="btn ghost" id="resetBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 102.13-9.36L1 10"></path></svg>
+        手動重置全部
+      </button>
+    </div>
   </div>
+
+  <div id="resultsContainer"></div>
 
   <div class="card" id="settingsCard">
     <details id="settingsDetails">
@@ -277,69 +270,19 @@
 (function(){
   "use strict";
 
-  // ---------- state ----------
+  // ================= 標準文字（localStorage） =================
   const STORAGE_KEY = "ic_ocr_standards_v1";
   let standards = [];
-  let stream = null;
-  let videoTrack = null;
-  let hasHardwareZoom = false;
-  let zoomLevel = 1.0; 
-  const ZOOM_MIN = 1.0;
-  const ZOOM_MAX = 4.0;
-  const ZOOM_STEP = 0.5;
-
-  let worker = null;
-  let workerReady = false;
-  let ocrTimer = null;
-  let isRecognizing = false;
-  let state = "idle"; 
-  let emptyStreak = 0;
-  let lastResultText = "";
-
-  // 穩定度校驗狀態
-  let candidateText = "";
-  let stableCount = 0;
-  const STABLE_THRESHOLD = 3; // 提升至連續 3 次掃描字元相似，才在手持時解鎖
-
-  const OCR_INTERVAL_IDLE = 200; // 提高取樣頻率，讓手持對焦更靈敏
-  const OCR_INTERVAL_LOCKED = 300;
-  const EMPTY_STREAK_TO_RESET = 3;
-  const MIN_TEXT_LEN = 6; 
-
   let editingIndex = null;
 
-  // ---------- elements ----------
-  const video = document.getElementById("video");
-  const camPlaceholder = document.getElementById("camPlaceholder");
-  const startBtn = document.getElementById("startBtn");
-  const camWrap = document.getElementById("camWrap");
-  const scanFrame = document.getElementById("scanFrame");
-  const scanLine = document.getElementById("scanLine");
-  const camStatusText = document.getElementById("camStatusText");
-  const statusDot = document.getElementById("statusDot");
-  const statusLabel = document.getElementById("statusLabel");
-  const ocrText = document.getElementById("ocrText");
-  const ocrBadge = document.getElementById("ocrBadge");
-  const cmpBadge = document.getElementById("cmpBadge");
-  const cmpList = document.getElementById("cmpList");
-  const matchName = document.getElementById("matchName");
-  const copyBtn = document.getElementById("copyBtn");
-  const resetBtn = document.getElementById("resetBtn");
-  const shotBtn = document.getElementById("shotBtn");
-  const zoomInBtn = document.getElementById("zoomInBtn");
-  const zoomOutBtn = document.getElementById("zoomOutBtn");
-  const settingsToggle = document.getElementById("settingsToggle");
-  const settingsDetails = document.getElementById("settingsDetails");
   const stdNameInput = document.getElementById("stdNameInput");
   const stdTextInput = document.getElementById("stdTextInput");
   const addStdBtn = document.getElementById("addStdBtn");
   const editorActionsRow = document.getElementById("editorActionsRow");
   const stdList = document.getElementById("stdList");
-  const toast = document.getElementById("toast");
-  const captureCanvas = document.getElementById("captureCanvas");
-  const shotCanvas = document.getElementById("shotCanvas");
+  const settingsToggle = document.getElementById("settingsToggle");
+  const settingsDetails = document.getElementById("settingsDetails");
 
-  // ---------- storage ----------
   function loadStandards(){
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -347,9 +290,7 @@
     }catch(e){ standards = []; }
     renderStdList();
   }
-  function saveStandards(){
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(standards));
-  }
+  function saveStandards(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(standards)); }
 
   function renderStdList(){
     if(standards.length === 0){
@@ -360,109 +301,78 @@
     standards.forEach((s, idx) => {
       const div = document.createElement("div");
       div.className = "std-item";
-      
       const head = document.createElement("div");
       head.className = "std-item-head";
-      
       const b = document.createElement("b");
       b.textContent = s.name || ("未命名 " + (idx+1));
-      
       const actions = document.createElement("div");
       actions.className = "std-item-actions";
-      
       const edit = document.createElement("button");
-      edit.className = "edit-btn";
-      edit.textContent = "修改";
+      edit.className = "edit-btn"; edit.textContent = "修改";
       edit.onclick = () => enterEditMode(idx);
-      
       const del = document.createElement("button");
-      del.className = "del-btn";
-      del.textContent = "刪除";
+      del.className = "del-btn"; del.textContent = "刪除";
       del.onclick = () => {
         if(editingIndex === idx) exitEditMode();
         standards.splice(idx, 1);
-        saveStandards();
-        renderStdList();
+        saveStandards(); renderStdList();
         showToast("已刪除該標準文字");
       };
-      
-      actions.appendChild(edit);
-      actions.appendChild(del);
-      head.appendChild(b);
-      head.appendChild(actions);
-      
+      actions.appendChild(edit); actions.appendChild(del);
+      head.appendChild(b); head.appendChild(actions);
       const pre = document.createElement("pre");
       pre.textContent = s.text;
-      
-      div.appendChild(head);
-      div.appendChild(pre);
+      div.appendChild(head); div.appendChild(pre);
       stdList.appendChild(div);
     });
   }
 
-  function enterEditMode(index) {
+  function enterEditMode(index){
     editingIndex = index;
     const target = standards[index];
     stdNameInput.value = target.name;
     stdTextInput.value = target.text;
-    
     settingsDetails.open = true;
     stdNameInput.scrollIntoView({ behavior:"smooth", block:"center" });
     stdNameInput.focus();
-
     editorActionsRow.innerHTML = `
       <button class="btn primary" id="saveStdBtn">儲存修改</button>
-      <button class="btn ghost" id="cancelEditBtn">取消修改</button>
-    `;
-
+      <button class="btn ghost" id="cancelEditBtn">取消修改</button>`;
     document.getElementById("saveStdBtn").onclick = saveEdit;
     document.getElementById("cancelEditBtn").onclick = exitEditMode;
   }
-
-  function exitEditMode() {
+  function exitEditMode(){
     editingIndex = null;
-    stdNameInput.value = "";
-    stdTextInput.value = "";
+    stdNameInput.value = ""; stdTextInput.value = "";
     editorActionsRow.innerHTML = `<button class="btn primary" id="addStdBtn">新增標準文字</button>`;
     document.getElementById("addStdBtn").onclick = addNewStandard;
   }
-
-  function saveEdit() {
+  function saveEdit(){
     if(editingIndex === null) return;
     const name = stdNameInput.value.trim();
     const text = stdTextInput.value.replace(/\r\n/g, "\n").trim();
     if(!text){ showToast("請輸入標準文字內容"); return; }
-
-    standards[editingIndex] = {
-      name: name || ("標準文字 " + (editingIndex + 1)),
-      text: text
-    };
-    saveStandards();
-    renderStdList();
-    exitEditMode();
+    standards[editingIndex] = { name: name || ("標準文字 " + (editingIndex + 1)), text };
+    saveStandards(); renderStdList(); exitEditMode();
     showToast("修改已儲存");
   }
-
-  function addNewStandard() {
+  function addNewStandard(){
     const name = stdNameInput.value.trim();
     const text = stdTextInput.value.replace(/\r\n/g, "\n").trim();
     if(!text){ showToast("請輸入標準文字內容"); return; }
     standards.push({ name: name || ("標準文字 " + (standards.length+1)), text });
-    saveStandards();
-    renderStdList();
-    stdNameInput.value = "";
-    stdTextInput.value = "";
+    saveStandards(); renderStdList();
+    stdNameInput.value = ""; stdTextInput.value = "";
     showToast("已新增標準文字");
   }
-
   addStdBtn.addEventListener("click", addNewStandard);
-
   settingsToggle.addEventListener("click", () => {
     settingsDetails.open = !settingsDetails.open;
     settingsDetails.scrollIntoView({ behavior:"smooth", block:"start" });
   });
 
-  // ---------- toast ----------
+  // ================= toast =================
+  const toast = document.getElementById("toast");
   let toastTimer = null;
   function showToast(msg){
     toast.textContent = msg;
@@ -471,25 +381,74 @@
     toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
   }
 
-  // ---------- status ----------
-  function setStatus(kind, label, camText){
-    statusDot.className = "dot" + (kind ? " " + kind : "");
-    statusLabel.textContent = label;
-    if(camText) camStatusText.textContent = camText;
-  }
-  function setFrame(kind){
-    scanFrame.className = "scan-frame" + (kind ? " " + kind : "");
+  function copyTextToClipboard(text){
+    navigator.clipboard.writeText(text).then(() => {
+      showToast("已複製到剪貼簿");
+    }).catch(() => {
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      try{ document.execCommand("copy"); showToast("已複製到剪貼簿"); }
+      catch(e){ showToast("複製失敗，請手動選取"); }
+      document.body.removeChild(ta);
+    });
   }
 
-  // ---------- camera ----------
+  // ================= 相機 / 變焦 =================
+  const video = document.getElementById("video");
+  const camPlaceholder = document.getElementById("camPlaceholder");
+  const startBtn = document.getElementById("startBtn");
+  const camWrap = document.getElementById("camWrap");
+  const scanLayer = document.getElementById("scanLayer");
+  const camStatusText = document.getElementById("camStatusText");
+  const statusDot = document.getElementById("statusDot");
+  const statusLabel = document.getElementById("statusLabel");
+  const shotBtn = document.getElementById("shotBtn");
+  const zoomInBtn = document.getElementById("zoomInBtn");
+  const zoomOutBtn = document.getElementById("zoomOutBtn");
+  const zoomIndicator = document.getElementById("zoomIndicator");
+  const resultsContainer = document.getElementById("resultsContainer");
+  const resetBtn = document.getElementById("resetBtn");
+  const slotSelectorRow = document.getElementById("slotSelectorRow");
+  const captureCanvas = document.getElementById("captureCanvas");
+  const shotCanvas = document.getElementById("shotCanvas");
+
+  let stream = null;
+  let videoTrack = null;
+  let hasHardwareZoom = false;
+  let zoomLevel = 1.0;
+  const ZOOM_MIN = 1.0, ZOOM_MAX = 4.0, ZOOM_STEP = 0.5;
+
+  let worker = null;
+  let workerReady = false;
+  let ocrTimer = null;
+  let isRecognizing = false;
+  let rrPointer = 0;
+
+  const STABLE_THRESHOLD = 2;
+  const OCR_TICK_DELAY = 90;
+  const EMPTY_STREAK_TO_RESET = 4;
+  const MIN_TEXT_LEN = 3;
+
+  let slots = [];
+
+  function setStatus(kind, label){
+    statusDot.className = "dot" + (kind ? " " + kind : "");
+    if(label) statusLabel.textContent = label;
+  }
+
   async function startCamera(){
     try{
-      if(stream){ stream.getTracks().forEach(t => t.stop()); }
-      setStatus(null, "相機啟動中", "啟動相機中...");
-      stream = await navigator.mediaDevices.getUserMedia({
+      setStatus(null, "啟動中");
+      camStatusText.textContent = "啟動相機與辨識引擎中...";
+      const camPromise = navigator.mediaDevices.getUserMedia({
         video: { facingMode: "environment", width:{ ideal:1920 }, height:{ ideal:1080 } },
         audio: false
       });
+      const workerPromise = ensureWorker();
+      const [camStream] = await Promise.all([camPromise, workerPromise]);
+      stream = camStream;
       video.srcObject = stream;
       await video.play();
 
@@ -499,241 +458,248 @@
         const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
         hasHardwareZoom = !!capabilities.zoom;
       }
-
       zoomLevel = 1.0;
       applyZoom();
 
       camPlaceholder.style.display = "none";
-      setStatus("scanning", "掃描中", "自動掃描中...");
-      setFrame("scanning");
-      scanLine.classList.add("active");
-      await ensureWorker();
-      resetToIdle(true);
-      scheduleOcr(200);
+      buildSlots(currentSlotCount());
+      scheduleOcr(150);
     }catch(err){
       console.error(err);
-      setStatus("bad", "相機錯誤", "無法啟動相機：" + err.message);
+      setStatus("bad", "相機錯誤");
+      camStatusText.textContent = "無法啟動相機：" + err.message;
       showToast("相機啟動失敗，請確認權限");
     }
   }
-
   startBtn.addEventListener("click", startCamera);
 
   function applyZoom(){
     if(!stream) return;
-    
     if(hasHardwareZoom && videoTrack){
-      video.style.transform = "scale(1)"; 
+      video.style.transform = "scale(1)";
       const capabilities = videoTrack.getCapabilities();
       const min = capabilities.zoom.min || 1;
       const max = capabilities.zoom.max || 3;
-      const mappedZoom = min + ((zoomLevel - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN)) * (max - min);
-      videoTrack.applyConstraints({
-        advanced: [{ zoom: mappedZoom }]
-      }).catch(err => {
+      const mapped = min + ((zoomLevel - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN)) * (max - min);
+      videoTrack.applyConstraints({ advanced: [{ zoom: mapped }] }).catch(err => {
         console.warn("硬體變焦失敗，切換為數位變焦備援", err);
+        hasHardwareZoom = false;
         video.style.transform = `scale(${zoomLevel})`;
       });
     } else {
       video.style.transform = `scale(${zoomLevel})`;
     }
-    
-    camStatusText.textContent = `倍率: ${zoomLevel.toFixed(1)}x` + (hasHardwareZoom ? "" : " (數位)");
+    zoomIndicator.textContent = zoomLevel.toFixed(1) + "x";
   }
-
   zoomInBtn.addEventListener("click", () => {
     if(!stream){ showToast("請先啟動相機"); return; }
-    if(zoomLevel < ZOOM_MAX){
-      zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
-      applyZoom();
-    } else {
-      showToast("已達最大倍率");
-    }
+    if(zoomLevel < ZOOM_MAX){ zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP); applyZoom(); }
+    else showToast("已達最大倍率");
   });
-
   zoomOutBtn.addEventListener("click", () => {
     if(!stream){ showToast("請先啟動相機"); return; }
-    if(zoomLevel > ZOOM_MIN){
-      zoomLevel = Math.max(ZOOM_MIN, zoomLevel - ZOOM_STEP);
-      applyZoom();
-    } else {
-      showToast("已達最小倍率");
-    }
+    if(zoomLevel > ZOOM_MIN){ zoomLevel = Math.max(ZOOM_MIN, zoomLevel - ZOOM_STEP); applyZoom(); }
+    else showToast("已達最小倍率");
   });
 
-  // ---------- tesseract worker ----------
+  // ================= Tesseract worker =================
   async function ensureWorker(){
     if(workerReady) return;
-    setStatus(null, "載入辨識引擎", "載入 OCR 引擎中...");
-    worker = await Tesseract.createWorker("eng", 1, {
-      logger: () => {}
-    });
-    
+    worker = await Tesseract.createWorker("eng", 1, { logger: () => {} });
     await worker.setParameters({
-      tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ",
+      tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ -./:+",
       tessedit_pageseg_mode: "6"
     });
     workerReady = true;
-    setStatus("scanning", "掃描中", "自動掃描中...");
   }
 
-  // ---------- crop mapping (極致縮剪：避開 DataMatrix 與 PCB 板上下邊界過孔) ----------
-  function getCropRect(){
+  // ================= 多顆 IC 掃描框管理 =================
+  function currentSlotCount(){
+    const activeBtn = slotSelectorRow.querySelector(".btn.active");
+    return activeBtn ? parseInt(activeBtn.dataset.count, 10) : 1;
+  }
+
+  slotSelectorRow.querySelectorAll(".btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      slotSelectorRow.querySelectorAll(".btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      if(stream) buildSlots(parseInt(btn.dataset.count, 10));
+    });
+  });
+
+  function buildSlots(count){
+    scanLayer.innerHTML = "";
+    resultsContainer.innerHTML = "";
+    slots = [];
+    const gap = count > 1 ? 4 : 0;
+    const slotWidthPct = (100 - gap * (count - 1)) / count;
+
+    for(let i = 0; i < count; i++){
+      const leftPct = i * (slotWidthPct + gap);
+      const frame = document.createElement("div");
+      frame.className = "scan-frame scanning";
+      frame.style.left = leftPct + "%";
+      frame.style.top = "0%";
+      frame.style.width = slotWidthPct + "%";
+      frame.style.height = "100%";
+      if(count > 1){
+        const label = document.createElement("div");
+        label.className = "slot-label";
+        label.textContent = "IC " + (i + 1);
+        frame.appendChild(label);
+      }
+      scanLayer.appendChild(frame);
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <h2>${count > 1 ? ("IC " + (i + 1) + " 辨識結果") : "OCR 辨識結果"} <span class="badge" id="badge-${i}">等待中</span></h2>
+        <div class="ocr-text empty" id="ocrText-${i}">尚無辨識結果</div>
+        <div class="row">
+          <button class="btn primary copy-slot-btn" data-slot="${i}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+            複製文字
+          </button>
+        </div>
+        <div class="match-name" id="matchName-${i}" style="display:none;"></div>
+        <div id="cmpList-${i}"><div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div></div>
+      `;
+      resultsContainer.appendChild(card);
+
+      slots.push({
+        index: i, el: frame,
+        state: "idle", candidateText: "", stableCount: 0, emptyStreak: 0,
+        lastResult: "", cmp: null
+      });
+    }
+
+    resultsContainer.querySelectorAll(".copy-slot-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const idx = parseInt(btn.dataset.slot, 10);
+        const slot = slots[idx];
+        if(!slot || !slot.lastResult){ showToast("尚無文字可複製"); return; }
+        copyTextToClipboard(slot.lastResult);
+      });
+    });
+
+    rrPointer = 0;
+    updateHeaderStatus();
+  }
+
+  resetBtn.addEventListener("click", () => { slots.forEach(resetSlot); updateHeaderStatus(); showToast("已重置所有掃描框"); });
+
+  // ================= 影像擷取與二值化（Otsu 自動閾值） =================
+  function getCropRectForEl(frameEl){
     const vw = video.videoWidth, vh = video.videoHeight;
     if(!vw || !vh) return null;
     const cw = camWrap.clientWidth, ch = camWrap.clientHeight;
-    const videoAspect = vw / vh;
-    const containerAspect = cw / ch;
+    const videoAspect = vw / vh, containerAspect = cw / ch;
     let renderW, renderH, offsetX, offsetY;
     if(videoAspect > containerAspect){
-      renderH = ch;
-      renderW = ch * videoAspect;
-      offsetX = (renderW - cw) / 2;
-      offsetY = 0;
-    }else{
-      renderW = cw;
-      renderH = cw / videoAspect;
-      offsetX = 0;
-      offsetY = (renderH - ch) / 2;
+      renderH = ch; renderW = ch * videoAspect; offsetX = (renderW - cw) / 2; offsetY = 0;
+    } else {
+      renderW = cw; renderH = cw / videoAspect; offsetX = 0; offsetY = (renderH - ch) / 2;
     }
     const scale = vw / renderW;
-    const boxRect = scanFrame.getBoundingClientRect();
+
+    const boxRect = frameEl.getBoundingClientRect();
     const wrapRect = camWrap.getBoundingClientRect();
-    
-    // 1. 寬度：X 往右移 30%，寬度縮減為 68%（徹底閃過左側 DataMatrix 二維碼）
-    const boxX = (boxRect.left - wrapRect.left) + (boxRect.width * 0.30);
-    const boxW = boxRect.width * 0.68;
-    
-    // 2. 高度：頂部、底部各縮減 12%，消除板上綠色圓孔與白膠的上下邊緣干擾
-    const boxY = (boxRect.top - wrapRect.top) + (boxRect.height * 0.12);
-    const boxH = boxRect.height * 0.76;
-    
-    let sx = (boxX + offsetX) * scale;
-    let sy = (boxY + offsetY) * scale;
-    let sw = boxW * scale;
-    let sh = boxH * scale;
+    let boxX = boxRect.left - wrapRect.left;
+    let boxY = boxRect.top - wrapRect.top;
+    let boxW = boxRect.width;
+    let boxH = boxRect.height;
 
     if(!hasHardwareZoom && zoomLevel > 1.0){
-      const dW = sw / zoomLevel;
-      const dH = sh / zoomLevel;
-      sx = sx + (sw - dW) / 2;
-      sy = sy + (sh - dH) / 2;
-      sw = dW;
-      sh = dH;
+      const cx = cw / 2, cy = ch / 2;
+      const x2 = boxX + boxW, y2 = boxY + boxH;
+      const ux1 = cx + (boxX - cx) / zoomLevel;
+      const uy1 = cy + (boxY - cy) / zoomLevel;
+      const ux2 = cx + (x2 - cx) / zoomLevel;
+      const uy2 = cy + (y2 - cy) / zoomLevel;
+      boxX = ux1; boxY = uy1; boxW = ux2 - ux1; boxH = uy2 - uy1;
     }
 
-    return { sx, sy, sw, sh };
+    return {
+      sx: (boxX + offsetX) * scale,
+      sy: (boxY + offsetY) * scale,
+      sw: boxW * scale,
+      sh: boxH * scale
+    };
   }
 
-  // ---------- 圖像去背、去過孔噪聲、二值化處理 ----------
-  function captureCroppedCanvas(){
-    const rect = getCropRect();
-    if(!rect) return null;
-    const upscale = 2.5; 
+  function computeOtsuThreshold(gray, n){
+    const hist = new Array(256).fill(0);
+    for(let i = 0; i < n; i++) hist[gray[i]]++;
+    let sum = 0;
+    for(let t = 0; t < 256; t++) sum += t * hist[t];
+    let sumB = 0, wB = 0, varMax = 0, threshold = 127;
+    for(let t = 0; t < 256; t++){
+      wB += hist[t];
+      if(wB === 0) continue;
+      const wF = n - wB;
+      if(wF === 0) break;
+      sumB += t * hist[t];
+      const mB = sumB / wB, mF = (sum - sumB) / wF;
+      const between = wB * wF * (mB - mF) * (mB - mF);
+      if(between > varMax){ varMax = between; threshold = t; }
+    }
+    return threshold;
+  }
+
+  function captureCroppedCanvas(frameEl){
+    const rect = getCropRectForEl(frameEl);
+    if(!rect || rect.sw <= 4 || rect.sh <= 4) return null;
+    const upscale = 3.0;
     captureCanvas.width = Math.max(1, Math.round(rect.sw * upscale));
     captureCanvas.height = Math.max(1, Math.round(rect.sh * upscale));
     const ctx = captureCanvas.getContext("2d");
-    
     ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
-    
-    try {
+
+    try{
       const imgData = ctx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
       const data = imgData.data;
-      const width = captureCanvas.width;
-      const height = captureCanvas.height;
-      const len = data.length;
-      
-      // 計算平均灰階度，設定動態對比閾值
-      let totalGray = 0;
-      for (let i = 0; i < len; i += 4) {
-        const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
-        totalGray += gray;
+      const n = captureCanvas.width * captureCanvas.height;
+      const gray = new Uint8ClampedArray(n);
+      for(let i = 0, p = 0; i < data.length; i += 4, p++){
+        gray[p] = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114) | 0;
       }
-      const avgGray = totalGray / (len / 4);
-      const threshold = Math.max(95, Math.min(avgGray * 1.12, 155)); 
-
-      // 1. 二值化
-      const binary = new Uint8Array(width * height);
-      for (let i = 0; i < len; i += 4) {
-        const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
-        const idx = i / 4;
-        binary[idx] = (gray > threshold) ? 255 : 0; 
-      }
-
-      // 2. 連通區塊濾波器：清除過大（白膠）或過小（板子圓孔雜訊）的物件
-      const visited = new Uint8Array(width * height);
-      for(let y = 0; y < height; y++){
-        for(let x = 0; x < width; x++){
-          const idx = y * width + x;
-          if(binary[idx] === 255 && visited[idx] === 0){
-            // 廣度優先搜索 (BFS) 找出相連的區塊
-            const queue = [idx];
-            visited[idx] = 1;
-            let head = 0;
-            while(head < queue.length){
-              const curr = queue[head++];
-              const cx = curr % width;
-              const cy = Math.floor(curr / width);
-              
-              const neighbors = [
-                {x: cx+1, y: cy}, {x: cx-1, y: cy},
-                {x: cx, y: cy+1}, {x: cx, y: cy-1}
-              ];
-              for(const n of neighbors){
-                if(n.x >= 0 && n.x < width && n.y >= 0 && n.y < height){
-                  const nidx = n.y * width + n.x;
-                  if(binary[nidx] === 255 && visited[nidx] === 0){
-                    visited[nidx] = 1;
-                    queue.push(nidx);
-                  }
-                }
-              }
-            }
-            
-            // 根據像素大小過濾 (文字比雜訊圓點大，比白膠小)
-            const area = queue.length;
-            if(area < 12 || area > 1100){ 
-              // 將不合標準的白點直接擦除為背景黑色
-              for(const pixel of queue){
-                binary[pixel] = 0;
-              }
-            }
-          }
-        }
-      }
-
-      // 3. 將濾波後的乾淨圖像寫回畫布
-      for (let i = 0; i < len; i += 4) {
-        const bVal = binary[i / 4];
-        data[i] = bVal;     
-        data[i+1] = bVal;   
-        data[i+2] = bVal;   
+      const threshold = computeOtsuThreshold(gray, n);
+      let brightCount = 0;
+      for(let p = 0; p < n; p++) if(gray[p] > threshold) brightCount++;
+      const textIsBright = brightCount < (n - brightCount);
+      for(let i = 0, p = 0; i < data.length; i += 4, p++){
+        const isBright = gray[p] > threshold;
+        const isText = textIsBright ? isBright : !isBright;
+        const v = isText ? 0 : 255;
+        data[i] = v; data[i+1] = v; data[i+2] = v;
       }
       ctx.putImageData(imgData, 0, 0);
-    } catch(e) {
-      console.warn("深度去噪失敗，改用常規濾鏡方案:", e);
-      ctx.filter = "grayscale(1) contrast(2.5) brightness(1.1)";
+    }catch(e){
+      console.warn("二值化失敗，改用濾鏡備援:", e);
+      ctx.filter = "grayscale(1) contrast(1.6) brightness(1.05)";
       ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
     }
-
     return captureCanvas;
   }
 
-  // ---------- OCR 流程控制 ----------
+  // ================= OCR 輪詢（多框輪流辨識，共用單一 worker） =================
   function scheduleOcr(delay){
     clearTimeout(ocrTimer);
-    ocrTimer = setTimeout(runOcr, delay != null ? delay : (state === "idle" ? OCR_INTERVAL_IDLE : OCR_INTERVAL_LOCKED));
+    ocrTimer = setTimeout(runOcrCycle, delay != null ? delay : OCR_TICK_DELAY);
   }
 
-  async function runOcr(){
-    if(!stream || !workerReady || isRecognizing){ scheduleOcr(); return; }
-    const canvas = captureCroppedCanvas();
-    if(!canvas){ scheduleOcr(); return; }
+  async function runOcrCycle(){
+    if(!stream || !workerReady || isRecognizing || slots.length === 0){ scheduleOcr(); return; }
+    const slot = slots[rrPointer % slots.length];
+    rrPointer++;
     isRecognizing = true;
     try{
-      const { data } = await worker.recognize(canvas);
-      const rawText = (data && data.text ? data.text : "").trim();
-      handleOcrResult(rawText);
+      const canvas = captureCroppedCanvas(slot.el);
+      if(canvas){
+        const { data } = await worker.recognize(canvas);
+        const rawText = (data && data.text ? data.text : "").trim();
+        handleOcrResult(slot, rawText);
+      }
     }catch(err){
       console.error(err);
     }finally{
@@ -742,225 +708,198 @@
     }
   }
 
-  // 行過濾：剃除過短的雜訊干擾
   function cleanText(t){
-    return t.split("\n")
-            .map(l => l.trim())
-            .filter(l => l.length >= 5) // 清除低於 5 個字元的碎字，只保留如 SEC 137 等關鍵型號
-            .join("\n");
+    return t.split("\n").map(l => l.trim()).filter(l => l.replace(/[^A-Za-z0-9]/g, "").length >= 2).join("\n");
   }
 
-  function handleOcrResult(rawText){
+  function setSlotBadge(slot, text, kind){
+    const el = document.getElementById("badge-" + slot.index);
+    if(!el) return;
+    el.textContent = text;
+    el.className = "badge" + (kind ? " " + kind : "");
+  }
+
+  function handleOcrResult(slot, rawText){
     const cleaned = cleanText(rawText);
     const meaningfulLen = cleaned.replace(/\s/g, "").length;
 
-    if(state === "idle"){
+    if(slot.state === "idle"){
       if(meaningfulLen >= MIN_TEXT_LEN){
-        if(cleaned === candidateText){
-          stableCount++;
-          setStatus("scanning", "掃描中", `請拿穩...驗證穩定度 (${stableCount}/${STABLE_THRESHOLD})`);
-          
-          if(stableCount >= STABLE_THRESHOLD){
-            lockResult(cleaned);
-            candidateText = "";
-            stableCount = 0;
+        if(cleaned === slot.candidateText){
+          slot.stableCount++;
+          setSlotBadge(slot, `校正中 ${slot.stableCount}/${STABLE_THRESHOLD}`, null);
+          if(slot.stableCount >= STABLE_THRESHOLD){
+            lockResult(slot, cleaned);
+            slot.candidateText = ""; slot.stableCount = 0;
           }
-        } else {
-          candidateText = cleaned;
-          stableCount = 1;
-          setStatus("scanning", "對焦中", "正在捕捉並對齊...");
+        }else{
+          slot.candidateText = cleaned; slot.stableCount = 1;
+          setSlotBadge(slot, "偵測到文字", null);
         }
       }else{
-        stableCount = 0;
-        candidateText = "";
-        setStatus("scanning", "掃描中", `自動掃描中... (倍率: ${zoomLevel.toFixed(1)}x)`);
+        slot.candidateText = ""; slot.stableCount = 0;
+        setSlotBadge(slot, "掃描中", null);
       }
-    }else if(state === "locked"){
+    }else if(slot.state === "locked"){
       if(meaningfulLen < MIN_TEXT_LEN){
-        emptyStreak++;
-        if(emptyStreak >= EMPTY_STREAK_TO_RESET){
-          resetToIdle();
-        }
+        slot.emptyStreak++;
+        if(slot.emptyStreak >= EMPTY_STREAK_TO_RESET) resetSlot(slot);
       }else{
-        emptyStreak = 0;
+        slot.emptyStreak = 0;
       }
     }
+    updateHeaderStatus();
   }
 
-  function lockResult(text){
-    state = "locked";
-    emptyStreak = 0;
-    lastResultText = text;
-    scanLine.classList.remove("active");
-    ocrText.textContent = text;
-    ocrText.classList.remove("empty");
-    ocrBadge.textContent = "已鎖定";
-    ocrBadge.className = "badge ok";
+  function lockResult(slot, text){
+    slot.state = "locked";
+    slot.emptyStreak = 0;
+    slot.lastResult = text;
+
+    const ocrTextEl = document.getElementById("ocrText-" + slot.index);
+    ocrTextEl.textContent = text;
+    ocrTextEl.classList.remove("empty");
 
     const cmp = compareAgainstStandards(text);
-    renderComparison(cmp);
+    slot.cmp = cmp;
+    renderComparison(slot, cmp);
 
-    if(cmp.kind === "green"){
-      setFrame("ok"); setStatus("ok", "完全符合", "比對成功：完全符合，移開 IC 以重新掃描");
-    }else if(cmp.kind === "yellow"){
-      setFrame("warn"); setStatus("warn", "部分符合", "部分符合，移開 IC 以重新掃描");
-    }else{
-      setFrame("bad"); setStatus("bad", "完全不符", "未通過比對，移開 IC 以重新掃描");
-    }
+    let colorClass = "bad";
+    if(cmp.kind === "green") colorClass = "ok";
+    else if(cmp.kind === "yellow") colorClass = "warn";
+    else if(cmp.kind === "gray") colorClass = "scanning";
+    slot.el.className = "scan-frame " + colorClass;
   }
 
-  function resetToIdle(silent){
-    state = "idle";
-    emptyStreak = 0;
-    lastResultText = "";
-    candidateText = "";
-    stableCount = 0;
-    scanLine.classList.add("active");
-    setFrame("scanning");
-    ocrText.textContent = "尚無辨識結果";
-    ocrText.classList.add("empty");
-    ocrBadge.textContent = "等待中";
-    ocrBadge.className = "badge";
-    cmpBadge.textContent = "—";
-    cmpBadge.className = "badge";
-    matchName.style.display = "none";
-    cmpList.innerHTML = '<div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div>';
-    if(!silent) setStatus("scanning", "掃描中", "已重置，自動掃描中...");
+  function resetSlot(slot){
+    slot.state = "idle";
+    slot.emptyStreak = 0; slot.candidateText = ""; slot.stableCount = 0;
+    slot.lastResult = ""; slot.cmp = null;
+    slot.el.className = "scan-frame scanning";
+
+    const ocrTextEl = document.getElementById("ocrText-" + slot.index);
+    ocrTextEl.textContent = "尚無辨識結果";
+    ocrTextEl.classList.add("empty");
+    setSlotBadge(slot, "等待中", null);
+
+    const matchNameEl = document.getElementById("matchName-" + slot.index);
+    matchNameEl.style.display = "none";
+    document.getElementById("cmpList-" + slot.index).innerHTML =
+      '<div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div>';
   }
 
-  resetBtn.addEventListener("click", () => resetToIdle());
-
-  // ---------- Levenshtein 模糊容錯與字元替換比對演算法 ----------
-  function normLine(l){
-    return l.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  function updateHeaderStatus(){
+    if(slots.length === 0){ setStatus(null, "STANDBY"); return; }
+    let anyBad = false, anyWarn = false, allLocked = true, lockedCount = 0;
+    slots.forEach(s => {
+      if(s.state === "locked"){
+        lockedCount++;
+        if(s.cmp){
+          if(s.cmp.kind === "red") anyBad = true;
+          else if(s.cmp.kind === "yellow") anyWarn = true;
+        }
+      }else{
+        allLocked = false;
+      }
+    });
+    let kind = "scanning", label = "掃描中";
+    if(anyBad){ kind = "bad"; label = "發現不符"; }
+    else if(anyWarn){ kind = "warn"; label = "部分符合"; }
+    else if(allLocked && lockedCount > 0){ kind = "ok"; label = "全部符合"; }
+    setStatus(kind, label);
+    camStatusText.textContent = `已鎖定 ${lockedCount}/${slots.length}　|　倍率 ${zoomLevel.toFixed(1)}x` + (hasHardwareZoom ? "" : " (數位)");
   }
 
-  // 計算兩個字串間的編輯距離 (允許少許誤差)
-  function getLevenshteinDistance(a, b) {
+  // ================= 模糊比對（容錯常見 OCR 混淆字元） =================
+  function normLine(l){ return l.toUpperCase().replace(/[^A-Z0-9]/g, ""); }
+
+  function getLevenshteinDistance(a, b){
     const tmp = [];
-    for (let i = 0; i <= a.length; i++) {
-      tmp[i] = [i];
-    }
-    for (let j = 0; j <= b.length; j++) {
-      tmp[0][j] = j;
-    }
-    for (let i = 1; i <= a.length; i++) {
-      for (let j = 1; j <= b.length; j++) {
+    for(let i = 0; i <= a.length; i++) tmp[i] = [i];
+    for(let j = 0; j <= b.length; j++) tmp[0][j] = j;
+    for(let i = 1; i <= a.length; i++){
+      for(let j = 1; j <= b.length; j++){
         tmp[i][j] = Math.min(
-          tmp[i - 1][j] + 1,
-          tmp[i][j - 1] + 1,
-          tmp[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)
+          tmp[i-1][j] + 1,
+          tmp[i][j-1] + 1,
+          tmp[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1)
         );
       }
     }
     return tmp[a.length][b.length];
   }
 
-  // 判斷常見 OCR 易混淆字元是否對等
-  function areCharsConfusable(c1, c2) {
-    if (c1 === c2) return true;
-    const sets = [
-      ["8", "B", "E"],
-      ["0", "O", "D", "Q", "G"],
-      ["1", "I", "L", "T", "J"],
-      ["5", "S"],
-      ["2", "Z"]
-    ];
-    for (const set of sets) {
-      if (set.includes(c1) && set.includes(c2)) return true;
-    }
+  function areCharsConfusable(c1, c2){
+    if(c1 === c2) return true;
+    const sets = [["8","B","E"], ["0","O","D","Q","G"], ["1","I","L","T","J"], ["5","S"], ["2","Z"]];
+    for(const set of sets){ if(set.includes(c1) && set.includes(c2)) return true; }
     return false;
   }
 
-  // 檢查在考慮易混淆字元的情況下，兩字串是否相似
-  function isFuzzyMatch(std, ocr) {
-    const nStd = normLine(std);
-    const nOcr = normLine(ocr);
-    
-    // 1. 如果完全一樣
-    if (nStd === nOcr) return true;
-    
-    // 2. 如果包含關係 (例如讀出了 K4A8G08 E，標準是 K4A8G08)
-    if (nStd.length >= 4 && (nOcr.includes(nStd) || nStd.includes(nOcr))) return true;
-
-    // 3. 容許字元替換（允許 2 個字元以內因混淆而產生的差異）
-    if (Math.abs(nStd.length - nOcr.length) <= 2) {
+  function isFuzzyMatch(std, ocr){
+    const nStd = normLine(std), nOcr = normLine(ocr);
+    if(!nStd || !nOcr) return false;
+    if(nStd === nOcr) return true;
+    if(nStd.length >= 4 && (nOcr.includes(nStd) || nStd.includes(nOcr))) return true;
+    if(Math.abs(nStd.length - nOcr.length) <= 2){
       const dist = getLevenshteinDistance(nStd, nOcr);
-      if (dist <= 2) {
-        // 進一步比對不一致的字元是否屬於混淆字元
-        let unpardonableDiff = 0;
+      if(dist <= 2){
+        let unpardonable = 0;
         const maxLen = Math.max(nStd.length, nOcr.length);
-        for (let i = 0; i < maxLen; i++) {
-          const sC = nStd[i] || "";
-          const oC = nOcr[i] || "";
-          if (sC !== oC && !areCharsConfusable(sC, oC)) {
-            unpardonableDiff++;
-          }
+        for(let i = 0; i < maxLen; i++){
+          const sC = nStd[i] || "", oC = nOcr[i] || "";
+          if(sC !== oC && !areCharsConfusable(sC, oC)) unpardonable++;
         }
-        if (unpardonableDiff <= 1) return true; 
+        if(unpardonable <= 1) return true;
       }
     }
     return false;
   }
 
   function compareAgainstStandards(ocrTextRaw){
-    if(standards.length === 0){
-      return { kind: "gray", stdName: null, lines: [], noStandards: true };
-    }
+    if(standards.length === 0) return { kind: "gray", stdName: null, lines: [], noStandards: true };
     const ocrLines = ocrTextRaw.split("\n").filter(l => l.trim().length > 0);
-
     let best = null;
     standards.forEach(s => {
       const stdLines = s.text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
       if(stdLines.length === 0) return;
-      
       const lineResults = stdLines.map(stdLine => {
         let matchedOcrLine = null;
         for(let i = 0; i < ocrLines.length; i++){
-          if(isFuzzyMatch(stdLine, ocrLines[i])){
-            matchedOcrLine = ocrLines[i];
-            break;
-          }
+          if(isFuzzyMatch(stdLine, ocrLines[i])){ matchedOcrLine = ocrLines[i]; break; }
         }
         return { std: stdLine, matched: matchedOcrLine !== null, got: matchedOcrLine };
       });
-      
       const matchCount = lineResults.filter(r => r.matched).length;
       const ratio = matchCount / stdLines.length;
-      if(!best || ratio > best.ratio){
-        best = { ratio, stdName: s.name, lines: lineResults };
-      }
+      if(!best || ratio > best.ratio) best = { ratio, stdName: s.name, lines: lineResults };
     });
-
-    if(!best){
-      return { kind: "gray", stdName: null, lines: [], noStandards: true };
-    }
+    if(!best) return { kind: "gray", stdName: null, lines: [], noStandards: true };
     let kind = "red";
     if(best.ratio >= 0.99) kind = "green";
     else if(best.ratio > 0) kind = "yellow";
     return { kind, stdName: best.stdName, lines: best.lines, ratio: best.ratio };
   }
 
-  function renderComparison(cmp){
+  function renderComparison(slot, cmp){
+    const i = slot.index;
+    const matchNameEl = document.getElementById("matchName-" + i);
+    const cmpListEl = document.getElementById("cmpList-" + i);
+
     if(cmp.noStandards){
-      matchName.style.display = "none";
-      cmpBadge.textContent = "無標準文字";
-      cmpBadge.className = "badge";
-      cmpList.innerHTML = '<div class="placeholder-dim">請先在下方新增標準文字以進行比對。</div>';
+      matchNameEl.style.display = "none";
+      setSlotBadge(slot, "無標準文字", null);
+      cmpListEl.innerHTML = '<div class="placeholder-dim">請先在下方新增標準文字以進行比對。</div>';
       return;
     }
-    matchName.style.display = "block";
-    matchName.textContent = "比對對象：" + cmp.stdName;
+    matchNameEl.style.display = "block";
+    matchNameEl.textContent = "比對對象：" + cmp.stdName;
 
-    if(cmp.kind === "green"){
-      cmpBadge.textContent = "完全符合"; cmpBadge.className = "badge ok";
-    }else if(cmp.kind === "yellow"){
-      cmpBadge.textContent = "部分符合"; cmpBadge.className = "badge warn";
-    }else{
-      cmpBadge.textContent = "完全不符"; cmpBadge.className = "badge bad";
-    }
+    if(cmp.kind === "green") setSlotBadge(slot, "完全符合", "ok");
+    else if(cmp.kind === "yellow") setSlotBadge(slot, "部分符合", "warn");
+    else setSlotBadge(slot, "完全不符", "bad");
 
-    cmpList.innerHTML = "";
+    cmpListEl.innerHTML = "";
     cmp.lines.forEach(r => {
       const row = document.createElement("div");
       row.className = "cmp-line " + (r.matched ? "match" : "mismatch");
@@ -980,38 +919,19 @@
         gotDiv.className = "got";
         gotDiv.textContent = "（未在辨識結果中找到對應行）";
         textWrap.appendChild(gotDiv);
-      } else if (r.std !== r.got) {
-        // 如果是模糊比對通過，貼心顯示實際抓取到的混淆內容，方便用戶確認
+      }else if(r.std !== r.got){
         const gotDiv = document.createElement("div");
         gotDiv.className = "got";
         gotDiv.style.color = "var(--warn)";
         gotDiv.textContent = `（相近字校正成功 ➔ 抓取到: "${r.got}"）`;
         textWrap.appendChild(gotDiv);
       }
-      row.appendChild(icon);
-      row.appendChild(textWrap);
-      cmpList.appendChild(row);
+      row.appendChild(icon); row.appendChild(textWrap);
+      cmpListEl.appendChild(row);
     });
   }
 
-  // ---------- copy / screenshot ----------
-  copyBtn.addEventListener("click", async () => {
-    const text = ocrText.textContent;
-    if(!text || ocrText.classList.contains("empty")){ showToast("尚無文字可複製"); return; }
-    try{
-      await navigator.clipboard.writeText(text);
-      showToast("已複製到剪貼簿");
-    }catch(e){
-      const ta = document.createElement("textarea");
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand("copy");
-      document.body.removeChild(ta);
-      showToast("已複製到剪貼簿");
-    }
-  });
-
+  // ================= 截圖 =================
   shotBtn.addEventListener("click", () => {
     if(!stream){ showToast("請先啟動相機"); return; }
     shotCanvas.width = video.videoWidth;
@@ -1022,19 +942,15 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const ts = new Date().toISOString().replace(/[:.]/g, "-");
-      a.href = url;
-      a.download = "ic-scan-" + ts + ".png";
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      a.href = url; a.download = "ic-scan-" + ts + ".png";
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
       setTimeout(() => URL.revokeObjectURL(url), 2000);
       showToast("截圖已儲存");
     }, "image/png");
   });
 
-  // ---------- init ----------
+  // ================= init =================
   loadStandards();
-  resetToIdle(true);
 })();
 </script>
 </body>
