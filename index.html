@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>IC 規格比對自動掃描系統</title>
-  <!-- 載入 Tesseract.js (採用穩定版本) -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
   <style>
     :root {
@@ -393,7 +392,7 @@
       display: flex;
       flex-direction: column;
       gap: 8px;
-      max-height: 200px;
+      max-height: 240px;
       overflow-y: auto;
       border: 1px solid var(--border-color);
       padding: 8px;
@@ -421,12 +420,29 @@
       color: var(--text-dim);
       white-space: pre-wrap;
     }
-    .del-btn {
+    
+    .item-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .action-btn {
       background: none;
       border: none;
-      color: var(--status-bad);
       cursor: pointer;
       font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .edit-btn {
+      color: var(--brand-primary);
+    }
+    .edit-btn:hover {
+      text-decoration: underline;
+    }
+    .del-btn {
+      color: var(--status-bad);
+    }
+    .del-btn:hover {
+      text-decoration: underline;
     }
 
     /* 全局輕提示 */
@@ -473,10 +489,8 @@
 
   <div class="main-grid">
     
-    <!-- 左側：影像鏡頭區 -->
     <div class="panel">
       <div class="cam-wrap" id="camWrap">
-        <!-- 相機等待或未啟動提示 -->
         <div class="cam-placeholder" id="camPlaceholder">
           <p style="margin-bottom:12px;">尚未連接或啟動相機</p>
           <button class="start-btn" id="startBtn">啟動相機</button>
@@ -484,7 +498,6 @@
         
         <video id="video" autoplay playsinline></video>
         
-        <!-- 自動對準裁切外框 -->
         <div class="scan-frame" id="scanFrame">
           <div class="scan-line" id="scanLine"></div>
         </div>
@@ -492,7 +505,6 @@
         <div class="cam-status" id="camStatusText">相機狀態：閒置</div>
       </div>
 
-      <!-- 控制輔助功能鈕 -->
       <div class="action-row">
         <button class="btn" id="zoomInBtn">🔍 變焦放大</button>
         <button class="btn" id="zoomOutBtn">🔍 變焦縮小</button>
@@ -501,7 +513,6 @@
       </div>
     </div>
 
-    <!-- 右側：辨識比對結果區 -->
     <div class="panel">
       <div class="status-bar">
         <div class="status-title">
@@ -511,7 +522,6 @@
         <button class="btn" id="settingsToggle" style="padding:4px 8px; font-size:0.75rem;">設定標準庫</button>
       </div>
 
-      <!-- OCR 結果顯示 -->
       <div class="result-box">
         <div class="result-head">
           <label>偵測辨識結果</label>
@@ -521,7 +531,6 @@
         <button class="btn" id="copyBtn" style="margin-top:10px; width:100%; font-size:0.8rem; padding:6px;">📋 複製辨識結果</button>
       </div>
 
-      <!-- 比對分析顯示 -->
       <div class="result-box" style="margin-bottom:0; flex-grow:1;">
         <div class="result-head">
           <label>規格對比清單</label>
@@ -536,16 +545,18 @@
 
   </div>
 
-  <!-- 摺疊設定：標準字串管理 -->
   <details id="settingsDetails">
     <summary>📦 IC 比對標準庫管理（自動過濾亂碼）</summary>
     <div class="settings-grid">
       
       <div class="form-group">
-        <label>新增一組 IC 型號 / 標準值</label>
+        <label id="formTitle">新增一組 IC 型號 / 標準值</label>
         <input type="text" class="input-text" id="stdNameInput" placeholder="例如：ATMEGA328P">
         <textarea class="textarea-text" id="stdTextInput" placeholder="請輸入欲比對的標準字，支援多行&#10;例如：&#10;MEGA328P&#10;U-TH&#10;2230A8"></textarea>
-        <button class="btn" id="addStdBtn" style="background-color:var(--brand-primary)">儲存至標準庫</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" id="addStdBtn" style="background-color:var(--brand-primary); flex-grow:1;">儲存至標準庫</button>
+          <button class="btn" id="cancelEditBtn" style="background-color:#475569; display:none;">取消編輯</button>
+        </div>
       </div>
 
       <div class="form-group">
@@ -556,14 +567,11 @@
     </div>
   </details>
 
-  <!-- 提示框 -->
   <div class="toast" id="toast"></div>
 
-  <!-- 隱藏 Canvas 快照用於影像二值化預處理 -->
   <canvas id="captureCanvas"></canvas>
   <canvas id="shotCanvas"></canvas>
 
-  <!-- 核心辨識邏輯 -->
   <script>
     (function(){
       "use strict";
@@ -591,6 +599,9 @@
       const OCR_INTERVAL_IDLE = 300;
       const OCR_INTERVAL_LOCKED = 300;
 
+      // 編輯狀態變數
+      let editIndex = -1; 
+
       // ---------- elements ----------
       const video = document.getElementById("video");
       const camPlaceholder = document.getElementById("camPlaceholder");
@@ -613,9 +624,13 @@
       const zoomOutBtn = document.getElementById("zoomOutBtn");
       const settingsToggle = document.getElementById("settingsToggle");
       const settingsDetails = document.getElementById("settingsDetails");
+      
+      const formTitle = document.getElementById("formTitle");
       const stdNameInput = document.getElementById("stdNameInput");
       const stdTextInput = document.getElementById("stdTextInput");
       const addStdBtn = document.getElementById("addStdBtn");
+      const cancelEditBtn = document.getElementById("cancelEditBtn");
+      
       const stdList = document.getElementById("stdList");
       const toast = document.getElementById("toast");
       const captureCanvas = document.getElementById("captureCanvas");
@@ -632,6 +647,7 @@
       function saveStandards(){
         localStorage.setItem(STORAGE_KEY, JSON.stringify(standards));
       }
+      
       function renderStdList(){
         if(standards.length === 0){
           stdList.innerHTML = '<div class="placeholder-dim">尚未新增任何標準文字。</div>';
@@ -641,38 +657,106 @@
         standards.forEach((s, idx) => {
           const div = document.createElement("div");
           div.className = "std-item";
+          
           const head = document.createElement("div");
           head.className = "std-item-head";
+          
           const b = document.createElement("b");
           b.textContent = s.name || ("未命名 " + (idx+1));
+          
+          // 按鈕容器
+          const actionsWrap = document.createElement("div");
+          actionsWrap.className = "item-actions";
+
+          // 編輯按鈕
+          const editBtn = document.createElement("button");
+          editBtn.className = "action-btn edit-btn";
+          editBtn.textContent = "修改";
+          editBtn.onclick = () => {
+            startEdit(idx);
+          };
+
+          // 刪除按鈕
           const del = document.createElement("button");
-          del.className = "del-btn";
+          del.className = "action-btn del-btn";
           del.textContent = "刪除";
           del.onclick = () => {
+            if(editIndex === idx) {
+              cancelEdit();
+            }
             standards.splice(idx, 1);
             saveStandards();
             renderStdList();
+            showToast("已刪除該標準項目");
           };
+
+          actionsWrap.appendChild(editBtn);
+          actionsWrap.appendChild(del);
+          
           head.appendChild(b);
-          head.appendChild(del);
+          head.appendChild(actionsWrap);
+          
           const pre = document.createElement("pre");
           pre.textContent = s.text;
+          
           div.appendChild(head);
           div.appendChild(pre);
           stdList.appendChild(div);
         });
       }
 
+      // 進入編輯狀態
+      function startEdit(idx) {
+        editIndex = idx;
+        const item = standards[idx];
+        stdNameInput.value = item.name;
+        stdTextInput.value = item.text;
+        
+        formTitle.textContent = "修改 IC 型號 / 標準值";
+        formTitle.style.color = "var(--brand-primary)";
+        addStdBtn.textContent = "更新標準庫";
+        cancelEditBtn.style.display = "inline-block";
+        
+        stdNameInput.focus();
+        showToast("已載入修改資料");
+      }
+
+      // 取消編輯狀態
+      function cancelEdit() {
+        editIndex = -1;
+        stdNameInput.value = "";
+        stdTextInput.value = "";
+        formTitle.textContent = "新增一組 IC 型號 / 標準值";
+        formTitle.style.color = "var(--text-dim)";
+        addStdBtn.textContent = "儲存至標準庫";
+        cancelEditBtn.style.display = "none";
+      }
+
+      cancelEditBtn.addEventListener("click", cancelEdit);
+
+      // 新增與修改的確認邏輯
       addStdBtn.addEventListener("click", () => {
         const name = stdNameInput.value.trim();
         const text = stdTextInput.value.replace(/\r\n/g, "\n").trim();
         if(!text){ showToast("請輸入標準文字內容"); return; }
-        standards.push({ name: name || ("標準文字 " + (standards.length+1)), text });
+        
+        const finalName = name || ("標準文字 " + (editIndex >= 0 ? editIndex + 1 : standards.length + 1));
+
+        if(editIndex >= 0) {
+          // 修改現有資料
+          standards[editIndex] = { name: finalName, text };
+          showToast("已更新標準文字項目");
+          cancelEdit();
+        } else {
+          // 新增全新資料
+          standards.push({ name: finalName, text });
+          showToast("已新增標準文字");
+          stdNameInput.value = "";
+          stdTextInput.value = "";
+        }
+        
         saveStandards();
         renderStdList();
-        stdNameInput.value = "";
-        stdTextInput.value = "";
-        showToast("已新增標準文字");
       });
 
       settingsToggle.addEventListener("click", () => {
@@ -748,7 +832,6 @@
           const capabilities = videoTrack.getCapabilities();
           const min = capabilities.zoom.min || 1;
           const max = capabilities.zoom.max || 3;
-          // 將設定的 1.0~4.0 映射到硬體的能力範圍
           const mappedZoom = min + ((zoomLevel - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN)) * (max - min);
           videoTrack.applyConstraints({
             advanced: [{ zoom: mappedZoom }]
@@ -792,7 +875,6 @@
           logger: () => {}
         });
         
-        // 【優化 1】限定英數大寫白名單，徹底防堵亂碼；並切換 PSM 至 6，更適合排版整齊的 IC 印字
         await worker.setParameters({
           tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-_/.",
           tessedit_pageseg_mode: "6"
@@ -833,7 +915,6 @@
         let sw = boxW * scale;
         let sh = boxH * scale;
 
-        // 若使用 CSS 數位變焦，反向縮小截圖範圍以完美對準框內畫面
         if(!hasHardwareZoom && zoomLevel > 1.0){
           const dW = sw / zoomLevel;
           const dH = sh / zoomLevel;
@@ -849,16 +930,14 @@
       function captureCroppedCanvas(){
         const rect = getCropRect();
         if(!rect) return null;
-        const upscale = 2; // 放大像素以利辨識
+        const upscale = 2; 
         captureCanvas.width = Math.max(1, Math.round(rect.sw * upscale));
         captureCanvas.height = Math.max(1, Math.round(rect.sh * upscale));
         const ctx = captureCanvas.getContext("2d");
         
-        // 預處理：先使用內建濾鏡灰階化與高對比
         ctx.filter = "grayscale(1) contrast(2) brightness(1.1)"; 
         ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
         
-        // 【優化 2】高對比二值化（Binarization）像素過濾：讓白字極白、黑底極黑，對付微弱反光效果奇佳
         try {
           const imgData = ctx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
           const data = imgData.data;
@@ -869,7 +948,7 @@
             sum += (data[i] + data[i+1] + data[i+2]) / 3;
           }
           const avgThreshold = sum / (len / 4);
-          const threshold = Math.max(100, Math.min(avgThreshold, 150)); // 安全動態閾值範圍
+          const threshold = Math.max(100, Math.min(avgThreshold, 150)); 
 
           for (let i = 0; i < len; i += 4) {
             const r = data[i], g = data[i+1], b = data[i+2];
