@@ -7,101 +7,173 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 <style>
 
-/* 全域頁面設定 */
 body {
     font-family: Arial, "Microsoft JhengHei", sans-serif;
     text-align: center;
     background: #111;
     color: white;
     margin: 0;
-    padding: 20px;
+    padding: 10px;
 }
 
-h1 {
-    margin-top: 10px;
+h1 { margin-top: 8px; font-size: 20px; }
+
+/* 全螢幕閃爍覆蓋層 */
+#flashOverlay {
+    display: none;
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    z-index: 999;
+    pointer-events: none;
+    opacity: 0.7;
 }
 
-/* 相機區域 */
+/* OK / NG 狀態文字 */
+#status {
+    font-size: 48px;
+    font-weight: bold;
+    margin: 8px 0;
+    padding: 6px;
+    border-radius: 10px;
+    transition: background 0.2s;
+}
+
+/* 相機外框 */
 #cameraBox {
     position: relative;
-    width: 320px;
+    width: 220px;
     margin: auto;
 }
 
 video {
-    width: 320px;
+    width: 220px;
     height: auto;
-    border-radius: 15px;
+    border-radius: 12px;
     border: 2px solid #555;
+    display: block;
 }
 
 /* IC 掃描框 */
 #scanFrame {
     position: absolute;
-    left: 25%;
-    top: 40%;
-    width: 50%;
-    height: 20%;
+    left: 15%;
+    top: 30%;
+    width: 70%;
+    height: 40%;
     border: 3px solid #00ff00;
+    border-radius: 4px;
     pointer-events: none;
+    box-sizing: border-box;
+}
+
+/* 掃描框四角強調 */
+#scanFrame::before,
+#scanFrame::after {
+    content: '';
+    position: absolute;
+    width: 16px; height: 16px;
+    border-color: #00ff00;
+    border-style: solid;
+}
+#scanFrame::before {
+    top: -3px; left: -3px;
+    border-width: 4px 0 0 4px;
+}
+#scanFrame::after {
+    bottom: -3px; right: -3px;
+    border-width: 0 4px 4px 0;
+}
+
+/* 放大預覽框 */
+#zoomBox {
+    width: 220px;
+    height: 80px;
+    margin: 6px auto;
+    border: 2px solid #444;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #000;
+    position: relative;
+}
+
+#zoomCanvas {
+    width: 100%;
+    height: 100%;
+    object-fit: fill;
+}
+
+#zoomLabel {
+    position: absolute;
+    top: 4px; left: 6px;
+    font-size: 11px;
+    color: #aaa;
+    background: rgba(0,0,0,0.5);
+    padding: 1px 4px;
+    border-radius: 3px;
 }
 
 /* 按鈕 */
+.btnRow {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 8px 0;
+}
+
 button {
-    margin: 10px;
-    padding: 12px 20px;
-    font-size: 18px;
+    padding: 10px 16px;
+    font-size: 16px;
     border-radius: 10px;
     border: none;
     cursor: pointer;
+    background: #333;
+    color: white;
 }
 
-/* 文字輸入 */
-textarea {
-    width: 85%;
-    height: 100px;
-    font-size: 20px;
-    padding: 10px;
-    border-radius: 10px;
+button:active { background: #555; }
+
+/* 自動偵測狀態 */
+#autoStatus {
+    font-size: 14px;
+    color: #aaa;
+    margin: 4px 0 8px;
 }
 
-/* OCR結果顯示 */
+/* OCR結果 */
 .resultBox {
     background: #222;
-    padding: 15px;
-    margin-top: 15px;
+    padding: 12px;
+    margin-top: 10px;
     border-radius: 10px;
     text-align: left;
-    font-size: 20px;
+    font-size: 18px;
     white-space: pre-line;
 }
 
-/* OK / NG 顯示 */
-#status {
-    font-size: 50px;
-    font-weight: bold;
-    margin: 20px;
-}
-
-.okFlash {
-    background: #008000;
-}
-
-.ngFlash {
-    background: #990000;
+textarea {
+    width: 85%;
+    height: 90px;
+    font-size: 18px;
+    padding: 8px;
+    border-radius: 10px;
+    background: #222;
+    color: white;
+    border: 1px solid #444;
 }
 
 </style>
 </head>
 <body>
 
+<!-- 全螢幕閃爍覆蓋層 -->
+<div id="flashOverlay"></div>
+
 <h1>🔍 OCR Finder Pro V3</h1>
 
-<!-- OK / NG 狀態顯示 -->
+<!-- OK / NG 狀態 -->
 <div id="status">等待掃描</div>
-
-<!-- 辨識文字顯示 -->
-<div id="ocrResult" class="resultBox"></div>
 
 <!-- 相機區域 -->
 <div id="cameraBox">
@@ -109,129 +181,138 @@ textarea {
     <div id="scanFrame"></div>
 </div>
 
-<br>
+<!-- 放大預覽 -->
+<div id="zoomBox">
+    <canvas id="zoomCanvas"></canvas>
+    <div id="zoomLabel">🔍 掃描框放大</div>
+</div>
+
+<!-- OCR結果 -->
+<div id="ocrResult" class="resultBox"></div>
 
 <!-- 按鈕 -->
-<button onclick="openCamera()">📷 開啟相機</button>
-<button onclick="saveScreenshot()">📸 截圖保存</button>
-<button onclick="resetResult()">🔄 重置</button>
+<div class="btnRow">
+    <button onclick="openCamera()">📷 開啟相機</button>
+    <button onclick="saveScreenshot()">📸 截圖</button>
+    <button onclick="resetResult()">🔄 重置</button>
+</div>
 
 <!-- 自動偵測狀態 -->
-<div id="autoStatus" style="font-size:16px; color:#aaa; margin:5px;">請開啟相機</div>
+<div id="autoStatus">請開啟相機</div>
 
 <!-- 標準文字管理 -->
 <h3>📌 標準文字</h3>
 
-<textarea
-    id="standardInput"
-    placeholder="輸入查詢文字串">
-</textarea>
-
+<textarea id="standardInput" placeholder="輸入查詢文字串"></textarea>
 <br>
-
-<button onclick="addStandard()">➕ 新增</button>
-<button onclick="deleteStandard()">🗑 刪除</button>
+<div class="btnRow">
+    <button onclick="addStandard()">➕ 新增</button>
+    <button onclick="deleteStandard()">🗑 刪除</button>
+</div>
 
 <h4>已儲存清單</h4>
-
 <div id="standardListView" class="resultBox">尚無資料</div>
 
 <script>
 
-/* =========================
-   變數設定
-========================= */
+const video     = document.getElementById("video");
+const zoomCanvas= document.getElementById("zoomCanvas");
+const zoomCtx   = zoomCanvas.getContext("2d");
 
-// 取得相機元件
-const video = document.getElementById("video");
-
-// 暫存圖片
 let canvas = document.createElement("canvas");
+let ctx    = canvas.getContext("2d");
 
-// Canvas繪圖工具
-let ctx = canvas.getContext("2d");
+let lastResult       = "";
+let autoMode         = false;
+let detectTimer      = null;
+let zoomTimer        = null;
+let isOCRRunning     = false;
+let lastFrameData    = null;
+let waitingForChange = false;
+let stableCount      = 0;         // 連續穩定幀數
+const DIFF_THRESHOLD = 0.03;
+const CHECK_INTERVAL = 500;
+const STABLE_FRAMES  = 3;         // 需連續穩定3幀才辨識
 
-// 紀錄上一次結果（避免重複閃爍）
-let lastResult = "";
-
-// 自動偵測相關變數
-let autoMode = false;          // 自動模式開關
-let detectTimer = null;        // 偵測計時器
-let isOCRRunning = false;      // OCR執行中旗標
-let lastFrameData = null;      // 上一幀畫面資料
-let waitingForChange = false;  // 辨識完成後等待換IC
-const DIFF_THRESHOLD = 0.03;   // 差異門檻 3%（中靈敏度）
-const CHECK_INTERVAL = 500;    // 每 500ms 檢查一次
-
-// 從手機讀取之前保存的清單
 let standardList = JSON.parse(localStorage.getItem("standardList")) || [];
-
-// 初始化顯示清單
 updateStandardList();
 
 /* =========================
-   開啟手機相機
+   開啟相機
 ========================= */
-
 async function openCamera() {
     try {
         let stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment" }
+            video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }
         });
         video.srcObject = stream;
-
-        // 等待相機畫面就緒後自動開始偵測
         video.onloadedmetadata = function() {
             startAutoDetect();
+            startZoomPreview();
         };
-    } catch(error) {
+    } catch(e) {
         alert("相機開啟失敗，請確認瀏覽器權限");
     }
 }
 
 /* =========================
-   自動開始偵測（開啟相機後自動呼叫）
+   放大預覽（即時顯示掃描框區域）
 ========================= */
+function startZoomPreview() {
+    if (zoomTimer) clearInterval(zoomTimer);
+    zoomTimer = setInterval(function() {
+        if (video.videoWidth === 0) return;
 
-function startAutoDetect() {
-    if (detectTimer) clearInterval(detectTimer);
-    autoMode = true;
-    waitingForChange = false;
-    lastFrameData = null;
-    document.getElementById("autoStatus").innerText = "自動偵測：開啟 ▸ 等待IC放入";
-    document.getElementById("autoStatus").style.color = "#00ff00";
-    detectTimer = setInterval(autoDetect, CHECK_INTERVAL);
+        // 掃描框對應到實際影像座標
+        // scanFrame: left=15% top=30% width=70% height=40%
+        let vw = video.videoWidth;
+        let vh = video.videoHeight;
+        let sx = vw * 0.15;
+        let sy = vh * 0.30;
+        let sw = vw * 0.70;
+        let sh = vh * 0.40;
+
+        zoomCanvas.width  = zoomBox.clientWidth  * 2;
+        zoomCanvas.height = zoomBox.clientHeight * 2;
+        zoomCtx.drawImage(video, sx, sy, sw, sh, 0, 0, zoomCanvas.width, zoomCanvas.height);
+    }, 100);
 }
 
 /* =========================
-   停止自動偵測
+   自動偵測啟動
 ========================= */
+function startAutoDetect() {
+    if (detectTimer) clearInterval(detectTimer);
+    autoMode         = true;
+    waitingForChange = false;
+    lastFrameData    = null;
+    stableCount      = 0;
+    setAutoStatus("等待IC放入", "#00ff00");
+    detectTimer = setInterval(autoDetect, CHECK_INTERVAL);
+}
 
 function stopAuto() {
     autoMode = false;
     clearInterval(detectTimer);
     detectTimer = null;
-    document.getElementById("autoStatus").innerText = "自動偵測：關閉";
-    document.getElementById("autoStatus").style.color = "#aaa";
+    setAutoStatus("自動偵測：關閉", "#aaa");
+}
+
+function setAutoStatus(msg, color) {
+    let el = document.getElementById("autoStatus");
+    el.innerText = "自動偵測：" + msg;
+    el.style.color = color;
 }
 
 /* =========================
    自動偵測主邏輯
-
-   流程：
-   1. 每 500ms 擷取畫面
-   2. 比對與上一幀的差異
-   3a. 等待換IC模式：差異夠大 → 重置，準備辨識
-   3b. 等待辨識模式：畫面穩定 → 觸發 OCR
 ========================= */
-
 async function autoDetect() {
     if (isOCRRunning) return;
     if (video.videoWidth === 0) return;
 
-    // 擷取目前畫面（縮小版，加快比對速度）
     let tmpCanvas = document.createElement("canvas");
-    tmpCanvas.width = 80;
+    tmpCanvas.width  = 80;
     tmpCanvas.height = 60;
     let tmpCtx = tmpCanvas.getContext("2d");
     tmpCtx.drawImage(video, 0, 0, 80, 60);
@@ -242,85 +323,76 @@ async function autoDetect() {
         return;
     }
 
-    // 計算畫面差異比例
     let diffCount = 0;
     for (let i = 0; i < currentData.length; i += 4) {
-        let diff = Math.abs(currentData[i] - lastFrameData[i])
+        let diff = Math.abs(currentData[i]   - lastFrameData[i])
                  + Math.abs(currentData[i+1] - lastFrameData[i+1])
                  + Math.abs(currentData[i+2] - lastFrameData[i+2]);
         if (diff > 30) diffCount++;
     }
     let diffRatio = diffCount / (80 * 60);
-
     lastFrameData = currentData;
 
     if (waitingForChange) {
-        // 辨識完成後，等待IC被換走（差異夠大代表IC已移開）
         if (diffRatio > DIFF_THRESHOLD) {
             waitingForChange = false;
-            lastResult = "";
+            stableCount      = 0;
+            lastResult       = "";
             document.getElementById("status").innerText = "等待掃描";
-            document.getElementById("autoStatus").innerText = "自動偵測：開啟 ▸ 等待IC放入";
+            document.getElementById("status").style.background = "";
+            setAutoStatus("等待IC放入", "#00ff00");
         }
     } else {
-        // 等待IC放入（畫面穩定才辨識，避免手還在移動時觸發）
         if (diffRatio < DIFF_THRESHOLD) {
-            document.getElementById("autoStatus").innerText = "自動偵測：開啟 ▸ 偵測到IC，辨識中...";
-            await startOCR();
-            waitingForChange = true;
-            document.getElementById("autoStatus").innerText = "自動偵測：開啟 ▸ 等待換下一顆";
+            stableCount++;
+            if (stableCount >= STABLE_FRAMES) {
+                setAutoStatus("偵測到IC，辨識中...", "#ffff00");
+                await startOCR();
+                waitingForChange = true;
+                stableCount      = 0;
+                setAutoStatus("等待換下一顆", "#00aaff");
+            }
+        } else {
+            stableCount = 0;
         }
     }
 }
 
 /* =========================
-   擷取相機畫面
+   擷取畫面（只取掃描框區域）
 ========================= */
-
 function captureImage() {
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    let vw = video.videoWidth;
+    let vh = video.videoHeight;
+    let sx = vw * 0.15;
+    let sy = vh * 0.30;
+    let sw = vw * 0.70;
+    let sh = vh * 0.40;
+
+    canvas.width  = sw;
+    canvas.height = sh;
+    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
 }
 
 /* =========================
-   圖片強化（灰階黑白化）
-   目的：IC雷雕字較淡，增加辨識率
+   圖片強化
 ========================= */
-
 function enhanceImage() {
     let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     let data = imageData.data;
-
     for (let i = 0; i < data.length; i += 4) {
-        // RGB平均值（灰階）
-        let gray = (data[i] + data[i+1] + data[i+2]) / 3;
-        // 黑白化
+        let gray  = (data[i] + data[i+1] + data[i+2]) / 3;
         let value = gray > 130 ? 255 : 0;
-        data[i]   = value;
-        data[i+1] = value;
-        data[i+2] = value;
+        data[i] = data[i+1] = data[i+2] = value;
     }
-
     ctx.putImageData(imageData, 0, 0);
 }
 
 /* =========================
-   開始 OCR 辨識
-   流程：
-   1. 擷取相機畫面
-   2. 圖片強化
-   3. OCR辨識
-   4. 顯示文字
-   5. 判定 OK / NG
+   OCR 辨識
 ========================= */
-
 async function startOCR() {
-    if (video.videoWidth === 0) {
-        alert("請先開啟相機");
-        return;
-    }
-
+    if (video.videoWidth === 0) return;
     isOCRRunning = true;
     captureImage();
     enhanceImage();
@@ -329,20 +401,15 @@ async function startOCR() {
         logger: function(info) { console.log(info); }
     });
 
-    let text = result.data.text.trim();
-    text = cleanText(text);
-
+    let text = cleanText(result.data.text.trim());
     document.getElementById("ocrResult").innerText = text;
-
     checkResult(text);
     isOCRRunning = false;
 }
 
 /* =========================
    文字整理
-   目的：移除多餘空白行，保留換行
 ========================= */
-
 function cleanText(text) {
     return text
         .split("\n")
@@ -351,17 +418,8 @@ function cleanText(text) {
         .join("\n");
 }
 
-/* =========================
-   比對格式化
-   規則：
-   ✅ 忽略大小寫
-   ✅ 忽略前後空白
-   ❌ 不刪除換行
-========================= */
-
 function normalizeText(text) {
-    return text
-        .toUpperCase()
+    return text.toUpperCase()
         .split("\n")
         .map(line => line.trim())
         .join("\n");
@@ -370,107 +428,63 @@ function normalizeText(text) {
 /* =========================
    OK / NG 判定
 ========================= */
-
 function checkResult(text) {
     let scanText = normalizeText(text);
-
-    if (standardList.length === 0) {
-        showNG();
-        return;
-    }
-
+    if (standardList.length === 0) { showNG(); return; }
     for (let item of standardList) {
-        let targetText = normalizeText(item);
-        if (scanText === targetText) {
-            showOK();
-            return;
-        }
+        if (scanText === normalizeText(item)) { showOK(); return; }
     }
-
     showNG();
 }
 
 /* =========================
-   多筆標準文字管理
+   全螢幕閃爍 OK（綠）
 ========================= */
-
-// 更新畫面清單
-function updateStandardList() {
-    let box = document.getElementById("standardListView");
-
-    if (standardList.length === 0) {
-        box.innerText = "尚無資料";
-        return;
-    }
-
-    box.innerText = standardList
-        .map((item, index) => "【" + (index+1) + "】\n" + item)
-        .join("\n\n");
-}
-
-// 新增標準文字
-function addStandard() {
-    let text = document.getElementById("standardInput").value;
-
-    if (text.trim() === "") {
-        alert("請輸入標準文字");
-        return;
-    }
-
-    standardList.push(text);
-    localStorage.setItem("standardList", JSON.stringify(standardList));
-    document.getElementById("standardInput").value = "";
-    updateStandardList();
-}
-
-// 刪除最後一筆
-function deleteStandard() {
-    if (standardList.length === 0) return;
-    standardList.pop();
-    localStorage.setItem("standardList", JSON.stringify(standardList));
-    updateStandardList();
-}
-
-/* =========================
-   顯示 OK（綠色閃一下）
-========================= */
-
 function showOK() {
     if (lastResult === "OK") return;
     lastResult = "OK";
 
-    let status = document.getElementById("status");
-    status.innerText = "🟩 OK";
-    status.classList.add("okFlash");
+    let st = document.getElementById("status");
+    st.innerText = "🟩 OK";
+    st.style.background = "#008000";
 
-    setTimeout(function() {
-        status.classList.remove("okFlash");
-        status.innerText = "等待掃描";
-    }, 500);
+    flash("#00ff00");
 }
 
 /* =========================
-   顯示 NG（紅色閃一下）
+   全螢幕閃爍 NG（紅）
 ========================= */
-
 function showNG() {
     if (lastResult === "NG") return;
     lastResult = "NG";
 
-    let status = document.getElementById("status");
-    status.innerText = "🟥 NG";
-    status.classList.add("ngFlash");
+    let st = document.getElementById("status");
+    st.innerText = "🟥 NG";
+    st.style.background = "#990000";
+
+    flash("#ff0000");
+}
+
+/* =========================
+   全螢幕閃爍函數
+========================= */
+function flash(color) {
+    let overlay = document.getElementById("flashOverlay");
+    overlay.style.background = color;
+    overlay.style.display    = "block";
+    overlay.style.opacity    = "0.6";
 
     setTimeout(function() {
-        status.classList.remove("ngFlash");
-        status.innerText = "等待掃描";
-    }, 500);
+        overlay.style.opacity = "0";
+        setTimeout(function() {
+            overlay.style.display = "none";
+        }, 300);
+    }, 400);
 }
 
 /* =========================
    截圖保存
 ========================= */
-
 function saveScreenshot() {
     let link = document.createElement("a");
     link.download = "OCR_Image.jpg";
@@ -479,21 +493,45 @@ function saveScreenshot() {
 }
 
 /* =========================
-   重置結果
-   目的：清除上一筆，允許重新偵測
+   重置
 ========================= */
-
 function resetResult() {
-    lastResult = "";
-    isOCRRunning = false;
+    lastResult       = "";
+    isOCRRunning     = false;
     waitingForChange = false;
-    lastFrameData = null;
-    document.getElementById("status").innerText = "等待掃描";
+    lastFrameData    = null;
+    stableCount      = 0;
+    document.getElementById("status").innerText   = "等待掃描";
+    document.getElementById("status").style.background = "";
     document.getElementById("ocrResult").innerText = "";
-    // 若相機已開啟則重新啟動偵測
-    if (video.videoWidth > 0) {
-        startAutoDetect();
-    }
+    if (video.videoWidth > 0) startAutoDetect();
+}
+
+/* =========================
+   標準文字管理
+========================= */
+function updateStandardList() {
+    let box = document.getElementById("standardListView");
+    if (standardList.length === 0) { box.innerText = "尚無資料"; return; }
+    box.innerText = standardList
+        .map((item, i) => "【" + (i+1) + "】\n" + item)
+        .join("\n\n");
+}
+
+function addStandard() {
+    let text = document.getElementById("standardInput").value;
+    if (text.trim() === "") { alert("請輸入標準文字"); return; }
+    standardList.push(text);
+    localStorage.setItem("standardList", JSON.stringify(standardList));
+    document.getElementById("standardInput").value = "";
+    updateStandardList();
+}
+
+function deleteStandard() {
+    if (standardList.length === 0) return;
+    standardList.pop();
+    localStorage.setItem("standardList", JSON.stringify(standardList));
+    updateStandardList();
 }
 
 </script>
