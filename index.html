@@ -400,7 +400,7 @@
       if(stream){ stream.getTracks().forEach(t => t.stop()); }
       setStatus(null, "相機啟動中", "啟動相機中...");
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: facing || currentFacing }, width:{ ideal:1920 }, height:{ ideal:1080 } },
+        video:{ facingMode:"environment"},
         audio: false
       });
       
