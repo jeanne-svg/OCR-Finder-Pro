@@ -59,7 +59,7 @@
     position:relative; width:100%; height:50vh; min-height:280px; background:#000; overflow:hidden;
     border-bottom:1px solid var(--line);
   }
-  video{ width:100%; height:100%; object-fit:cover; display:block; }
+  video{ width:100%; height:100%; object-fit:cover; display:block; transition: transform 0.1s ease-out; }
   .cam-placeholder{
     position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
     gap:14px; background:radial-gradient(circle at 50% 40%, #141a20, #0a0c0f);
@@ -217,8 +217,11 @@
     <button id="shotBtn" title="截圖">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
     </button>
-    <button id="switchCamBtn" title="切換鏡頭">
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"></path></svg>
+    <button id="zoomInBtn" title="放大">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+    </button>
+    <button id="zoomOutBtn" title="縮小">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"></line></svg>
     </button>
   </div>
   <div class="cam-status"><span id="camStatusText">尚未啟動相機</span></div>
@@ -273,7 +276,13 @@
   const STORAGE_KEY = "ic_ocr_standards_v1";
   let standards = [];
   let stream = null;
-  let currentFacing = "environment";
+  let videoTrack = null;
+  let hasHardwareZoom = false;
+  let zoomLevel = 1.0; // 範圍 1.0 至 4.0
+  const ZOOM_MIN = 1.0;
+  const ZOOM_MAX = 4.0;
+  const ZOOM_STEP = 0.5;
+
   let worker = null;
   let workerReady = false;
   let ocrTimer = null;
@@ -305,7 +314,8 @@
   const copyBtn = document.getElementById("copyBtn");
   const resetBtn = document.getElementById("resetBtn");
   const shotBtn = document.getElementById("shotBtn");
-  const switchCamBtn = document.getElementById("switchCamBtn");
+  const zoomInBtn = document.getElementById("zoomInBtn");
+  const zoomOutBtn = document.getElementById("zoomOutBtn");
   const settingsToggle = document.getElementById("settingsToggle");
   const settingsDetails = document.getElementById("settingsDetails");
   const stdNameInput = document.getElementById("stdNameInput");
@@ -395,16 +405,28 @@
   }
 
   // ---------- camera ----------
-  async function startCamera(facing){
+  async function startCamera(){
     try{
       if(stream){ stream.getTracks().forEach(t => t.stop()); }
       setStatus(null, "相機啟動中", "啟動相機中...");
       stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: facing || currentFacing }, width:{ ideal:1920 }, height:{ ideal:1080 } },
+        video: { facingMode: "environment", width:{ ideal:1920 }, height:{ ideal:1080 } },
         audio: false
       });
       video.srcObject = stream;
       await video.play();
+
+      // 檢查硬體變焦支援度
+      const tracks = stream.getVideoTracks();
+      if(tracks.length > 0){
+        videoTrack = tracks[0];
+        const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
+        hasHardwareZoom = !!capabilities.zoom;
+      }
+
+      zoomLevel = 1.0;
+      applyZoom();
+
       camPlaceholder.style.display = "none";
       setStatus("scanning", "掃描中", "自動掃描中...");
       setFrame("scanning");
@@ -419,11 +441,52 @@
     }
   }
 
-  startBtn.addEventListener("click", () => startCamera(currentFacing));
+  startBtn.addEventListener("click", startCamera);
 
-  switchCamBtn.addEventListener("click", () => {
-    currentFacing = currentFacing === "environment" ? "user" : "environment";
-    startCamera(currentFacing);
+  // ---------- zoom logic ----------
+  function applyZoom(){
+    if(!stream) return;
+    
+    if(hasHardwareZoom && videoTrack){
+      // 硬體變焦處理
+      video.style.transform = "scale(1)"; // 重置 CSS 縮放
+      const capabilities = videoTrack.getCapabilities();
+      const min = capabilities.zoom.min || 1;
+      const max = capabilities.zoom.max || 3;
+      // 將我們定義的 1.0~4.0 映射到硬體的範圍
+      const mappedZoom = min + ((zoomLevel - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN)) * (max - min);
+      videoTrack.applyConstraints({
+        advanced: [{ zoom: mappedZoom }]
+      }).catch(err => {
+        console.warn("硬體變焦失敗，切換為數位變焦備援", err);
+        video.style.transform = `scale(${zoomLevel})`;
+      });
+    } else {
+      // 數位變焦（CSS 備援）
+      video.style.transform = `scale(${zoomLevel})`;
+    }
+    
+    camStatusText.textContent = `倍率: ${zoomLevel.toFixed(1)}x` + (hasHardwareZoom ? "" : " (數位)");
+  }
+
+  zoomInBtn.addEventListener("click", () => {
+    if(!stream){ showToast("請先啟動相機"); return; }
+    if(zoomLevel < ZOOM_MAX){
+      zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
+      applyZoom();
+    } else {
+      showToast("已達最大倍率");
+    }
+  });
+
+  zoomOutBtn.addEventListener("click", () => {
+    if(!stream){ showToast("請先啟動相機"); return; }
+    if(zoomLevel > ZOOM_MIN){
+      zoomLevel = Math.max(ZOOM_MIN, zoomLevel - ZOOM_STEP);
+      applyZoom();
+    } else {
+      showToast("已達最小倍率");
+    }
   });
 
   // ---------- tesseract worker ----------
@@ -466,10 +529,22 @@
     const boxY = boxRect.top - wrapRect.top;
     const boxW = boxRect.width;
     const boxH = boxRect.height;
-    const sx = (boxX + offsetX) * scale;
-    const sy = (boxY + offsetY) * scale;
-    const sw = boxW * scale;
-    const sh = boxH * scale;
+    
+    let sx = (boxX + offsetX) * scale;
+    let sy = (boxY + offsetY) * scale;
+    let sw = boxW * scale;
+    let sh = boxH * scale;
+
+    // 如果是數位變焦 (CSS Scale)，OCR 截圖範圍必須反向內縮以精準對齊視覺
+    if(!hasHardwareZoom && zoomLevel > 1.0){
+      const dW = sw / zoomLevel;
+      const dH = sh / zoomLevel;
+      sx = sx + (sw - dW) / 2;
+      sy = sy + (sh - dH) / 2;
+      sw = dW;
+      sh = dH;
+    }
+
     return { sx, sy, sw, sh };
   }
 
@@ -521,7 +596,7 @@
       if(meaningfulLen >= MIN_TEXT_LEN){
         lockResult(cleaned);
       }else{
-        setStatus("scanning", "掃描中", "自動掃描中...");
+        setStatus("scanning", "掃描中", `自動掃描中... (倍率: ${zoomLevel.toFixed(1)}x)`);
       }
     }else if(state === "locked"){
       if(meaningfulLen < MIN_TEXT_LEN){
