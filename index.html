@@ -214,14 +214,10 @@
   <div class="scan-frame" id="scanFrame"></div>
   <div class="scanline" id="scanLine"></div>
   <div class="cam-tools">
-    
-<button id="zoomInBtn">＋</button>
-
-<button id="zoomOutBtn">－</button>
-    
+    <button id="shotBtn" title="截圖">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
     </button>
-
+    <button id="switchCamBtn" title="切換鏡頭">
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"></path></svg>
     </button>
   </div>
@@ -309,7 +305,7 @@
   const copyBtn = document.getElementById("copyBtn");
   const resetBtn = document.getElementById("resetBtn");
   const shotBtn = document.getElementById("shotBtn");
-
+  const switchCamBtn = document.getElementById("switchCamBtn");
   const settingsToggle = document.getElementById("settingsToggle");
   const settingsDetails = document.getElementById("settingsDetails");
   const stdNameInput = document.getElementById("stdNameInput");
@@ -404,10 +400,9 @@
       if(stream){ stream.getTracks().forEach(t => t.stop()); }
       setStatus(null, "相機啟動中", "啟動相機中...");
       stream = await navigator.mediaDevices.getUserMedia({
-        video:{ facingMode:"environment"},
+        video: { facingMode: { ideal: facing || currentFacing }, width:{ ideal:1920 }, height:{ ideal:1080 } },
         audio: false
       });
-      
       video.srcObject = stream;
       await video.play();
       camPlaceholder.style.display = "none";
@@ -485,7 +480,7 @@
     captureCanvas.width = Math.max(1, Math.round(rect.sw * upscale));
     captureCanvas.height = Math.max(1, Math.round(rect.sh * upscale));
     const ctx = captureCanvas.getContext("2d");
-    ctx.filter = "grayscale(1) contrast(1.8) brightness(1.15) sharpen(1)"; //"grayscale(1) contrast(1.35) brightness(1.05)";
+    ctx.filter = "grayscale(1) contrast(1.8) brightness(1.15) sharpen(1)"; 
     ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
     return captureCanvas;
   }
@@ -710,37 +705,6 @@
     }, "image/png");
   });
 
-  const zoomInBtn = document.getElementById("zoomInBtn");
-const zoomOutBtn = document.getElementById("zoomOutBtn");
-
-zoomInBtn.addEventListener("click", async () => {
-
-    if (!stream) return;
-
-    zoom = Math.min(5, zoom + 0.5);
-
-    const track = stream.getVideoTracks()[0];
-
-    await track.applyConstraints({
-        advanced: [{ zoom }]
-    });
-
-});
-
-zoomOutBtn.addEventListener("click", async () => {
-
-    if (!stream) return;
-
-    zoom = Math.max(1, zoom - 0.5);
-
-    const track = stream.getVideoTracks()[0];
-
-    await track.applyConstraints({
-        advanced: [{ zoom }]
-    });
-
-});
-  
   // ---------- init ----------
   loadStandards();
   resetToIdle(true);
