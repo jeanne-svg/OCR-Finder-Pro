@@ -71,19 +71,20 @@
   }
   .cam-placeholder p{ color:var(--text-dim); font-size:12.5px; margin:0; }
 
+  /* 稍微縮小感應框，引導使用者將 IC 主要文字對準框內，並在代碼內自動將掃描範圍往右偏移 */
   .scan-frame{
-    position:absolute; left:12%; top:22%; width:76%; height:56%;
+    position:absolute; left:15%; top:25%; width:70%; height:50%;
     border:3px solid var(--idle); border-radius:14px; transition:border-color .25s, box-shadow .25s;
-    box-shadow:0 0 0 2000px rgba(0,0,0,.38);
+    box-shadow:0 0 0 2000px rgba(0,0,0,.45);
     pointer-events:none;
   }
   .scan-frame::before, .scan-frame::after{
     content:''; position:absolute; width:22px; height:22px; border-color:inherit;
   }
-  .scan-frame.scanning{ border-color:var(--accent); box-shadow:0 0 0 2000px rgba(0,0,0,.32), 0 0 18px -2px var(--accent); }
-  .scan-frame.ok{ border-color:var(--ok); box-shadow:0 0 0 2000px rgba(0,0,0,.28), 0 0 22px -2px var(--ok); }
-  .scan-frame.warn{ border-color:var(--warn); box-shadow:0 0 0 2000px rgba(0,0,0,.28), 0 0 22px -2px var(--warn); }
-  .scan-frame.bad{ border-color:var(--bad); box-shadow:0 0 0 2000px rgba(0,0,0,.28), 0 0 22px -2px var(--bad); }
+  .scan-frame.scanning{ border-color:var(--accent); box-shadow:0 0 0 2000px rgba(0,0,0,.38), 0 0 18px -2px var(--accent); }
+  .scan-frame.ok{ border-color:var(--ok); box-shadow:0 0 0 2000px rgba(0,0,0,.35), 0 0 22px -2px var(--ok); }
+  .scan-frame.warn{ border-color:var(--warn); box-shadow:0 0 0 2000px rgba(0,0,0,.35), 0 0 22px -2px var(--warn); }
+  .scan-frame.bad{ border-color:var(--bad); box-shadow:0 0 0 2000px rgba(0,0,0,.35), 0 0 22px -2px var(--bad); }
 
   .scanline{
     position:absolute; left:2%; width:96%; height:2px; background:linear-gradient(90deg, transparent, var(--accent), transparent);
@@ -257,8 +258,8 @@
     <details id="settingsDetails">
       <summary><h2 style="margin:0; border:none;">標準文字管理 <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></h2></summary>
       <div style="margin-top:12px;">
-        <input type="text" id="stdNameInput" placeholder="標準文字名稱（例：STM32F103C8T6）">
-        <textarea id="stdTextInput" placeholder="貼上多行標準文字，逐行比對&#10;例：&#10;STM32F103C8T6&#10;GENUINE CHIP&#10;2024 ABCD"></textarea>
+        <input type="text" id="stdNameInput" placeholder="標準文字名稱（例：SEC 137）">
+        <textarea id="stdTextInput" placeholder="貼上多行標準文字，逐行比對&#10;例：&#10;SEC 137&#10;K4A8G08&#10;5WD BCWE&#10;GKD52592"></textarea>
         <div class="row" id="editorActionsRow">
           <button class="btn primary" id="addStdBtn">新增標準文字</button>
         </div>
@@ -346,7 +347,7 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(standards));
   }
 
-  // 渲染標準文字列表（含修改與刪除功能）
+  // 渲染標準文字列表
   function renderStdList(){
     if(standards.length === 0){
       stdList.innerHTML = '<div class="placeholder-dim">尚未新增任何標準文字。</div>';
@@ -576,16 +577,16 @@
       logger: () => {}
     });
     
-    // 嚴格白名單：僅限大寫字母、數字與連字號，徹底不理會 QR Code 誤判的特殊符號
+    // 嚴格白名單：僅包含大寫字母、數字與空格
     await worker.setParameters({
-      tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ- ",
+      tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ ",
       tessedit_pageseg_mode: "6"
     });
     workerReady = true;
     setStatus("scanning", "掃描中", "自動掃描中...");
   }
 
-  // ---------- crop mapping (object-fit: cover) ----------
+  // ---------- crop mapping (對準右側，避開 DataMatrix 二維碼) ----------
   function getCropRect(){
     const vw = video.videoWidth, vh = video.videoHeight;
     if(!vw || !vh) return null;
@@ -607,9 +608,12 @@
     const scale = vw / renderW;
     const boxRect = scanFrame.getBoundingClientRect();
     const wrapRect = camWrap.getBoundingClientRect();
-    const boxX = boxRect.left - wrapRect.left;
+    
+    // 關鍵優化：將原本的 X 起始點往右移 28%，並且寬度縮減為原本的 72%
+    // 這樣在使用時，使用者只要將晶片字體靠右對準框內，就能完全屏除左側二維碼
+    const boxX = (boxRect.left - wrapRect.left) + (boxRect.width * 0.28);
     const boxY = boxRect.top - wrapRect.top;
-    const boxW = boxRect.width;
+    const boxW = boxRect.width * 0.72;
     const boxH = boxRect.height;
     
     let sx = (boxX + offsetX) * scale;
@@ -650,7 +654,9 @@
         totalGray += gray;
       }
       const avgGray = totalGray / (len / 4);
-      const threshold = Math.max(85, Math.min(avgGray * 1.15, 165)); 
+      
+      // 強化對比度門檻：針對晶片塑料表面微距特寫進行最佳化，提高文字清晰度並去除背景點狀紋路
+      const threshold = Math.max(95, Math.min(avgGray * 1.1, 160)); 
 
       for (let i = 0; i < len; i += 4) {
         const gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
@@ -662,7 +668,7 @@
       ctx.putImageData(imgData, 0, 0);
     } catch(e) {
       console.warn("手動二值化失敗，使用預設濾鏡備用方案:", e);
-      ctx.filter = "grayscale(1) contrast(2) brightness(1.1)";
+      ctx.filter = "grayscale(1) contrast(2.5) brightness(1.1)";
       ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
     }
 
@@ -693,12 +699,12 @@
     }
   }
 
-  // 精準清理並過濾可能源自 QR Code 雜訊的破碎字元
+  // 清理與過濾
   function cleanText(t){
     return t.split("\n")
             .map(l => l.trim())
-            // 過濾掉空行，以及長度小於等於 2 個字元、可能為條碼雜訊的碎片文字
-            .filter(l => l.length > 2) 
+            // 剔除任何長度小於 3 個字元的細碎行（避免殘存的角落背景雜訊）
+            .filter(l => l.length >= 3) 
             .join("\n");
   }
 
