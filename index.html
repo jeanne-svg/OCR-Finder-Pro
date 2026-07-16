@@ -1,1072 +1,501 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-
 <head>
-
 <meta charset="UTF-8">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>OCR Finder Pro V3</title>
-
-<!-- OCR辨識引擎 -->
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-
 <style>
 
-/* =========================
-   全域頁面設定
-========================= */
-
+/* 全域頁面設定 */
 body {
-
-    /* 網頁字型 */
     font-family: Arial, "Microsoft JhengHei", sans-serif;
-
-    /* 文字置中 */
     text-align: center;
-
-    /* 背景顏色 */
     background: #111;
-
-    /* 文字顏色 */
     color: white;
-
     margin: 0;
-
     padding: 20px;
-
 }
 
-/* =========================
-   標題
-========================= */
-
 h1 {
-
     margin-top: 10px;
 }
 
-/* =========================
-   相機區域
-========================= */
-
-/* 相機外框 */
+/* 相機區域 */
 #cameraBox {
-
-    /* 讓掃描框可以定位 */
     position: relative;
-
-    /* 固定相機大小 */
     width: 320px;
-
     margin: auto;
 }
 
-/* 手機相機畫面 */
-
 video {
-
-    /* 相機視窗縮小 */
     width: 320px;
-
     height: auto;
-
     border-radius: 15px;
-
     border: 2px solid #555;
-
 }
 
-/* =========================
-   IC 掃描框
-========================= */
-
+/* IC 掃描框 */
 #scanFrame {
-
-    /* 疊在相機上方 */
     position: absolute;
-
-    /* 水平位置 */
     left: 25%;
-
-    /* 垂直位置 */
     top: 40%;
-
-    /* 框大小 */
     width: 50%;
-
     height: 20%;
-
-    /* 綠色框線 */
-
     border: 3px solid #00ff00;
-
-    /* 不影響點擊 */
-
-    pointer-events:none;
-
+    pointer-events: none;
 }
 
-/* =========================
-   按鈕
-========================= */
-
+/* 按鈕 */
 button {
-
-    margin:10px;
-
-    padding:12px 20px;
-
-    font-size:18px;
-
-    border-radius:10px;
-
-    border:none;
-
+    margin: 10px;
+    padding: 12px 20px;
+    font-size: 18px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
 }
 
-/* =========================
-   標準文字輸入
-========================= */
-
-/*
-
-使用 textarea
-
-原因：
-
-可以直接貼：
-
-SKhynix
-H5CG46AGBD
-X017
-
-並保留三行格式
-
-*/
-
+/* 文字輸入 */
 textarea {
-
-    width:85%;
-
-    height:100px;
-
-    font-size:20px;
-
-    padding:10px;
-
-    border-radius:10px;
-
+    width: 85%;
+    height: 100px;
+    font-size: 20px;
+    padding: 10px;
+    border-radius: 10px;
 }
 
-/* =========================
-   OCR結果顯示
-========================= */
-
+/* OCR結果顯示 */
 .resultBox {
-
-    background:#222;
-
-    padding:15px;
-
-    margin-top:15px;
-
-    border-radius:10px;
-
-    text-align:left;
-
-    font-size:20px;
-
-    /*
-      保留換行
-      讓 IC 文字維持原格式
-    */
-
-    white-space:pre-line;
-
+    background: #222;
+    padding: 15px;
+    margin-top: 15px;
+    border-radius: 10px;
+    text-align: left;
+    font-size: 20px;
+    white-space: pre-line;
 }
 
-/* =========================
-   OK / NG 顯示
-========================= */
-
+/* OK / NG 顯示 */
 #status {
-
-    font-size:50px;
-
-    font-weight:bold;
-
-    margin:20px;
-
+    font-size: 50px;
+    font-weight: bold;
+    margin: 20px;
 }
 
 .okFlash {
-
-    background:#008000;
-
+    background: #008000;
 }
 
 .ngFlash {
-
-    background:#990000;
-
+    background: #990000;
 }
 
 </style>
-
 </head>
-
 <body>
-
-<!-- 系統名稱 -->
 
 <h1>🔍 OCR Finder Pro V3</h1>
 
 <!-- OK / NG 狀態顯示 -->
+<div id="status">等待掃描</div>
 
-<div id="status">
+<!-- 辨識文字顯示 -->
+<div id="ocrResult" class="resultBox"></div>
 
-等待掃描
-
-</div>
-
-<!-- 辨識文字顯示在狀態區下面 -->
-
-<div id="ocrResult" class="resultBox">
-
-</div>
-   
-<!-- =========================
-     相機區域
-========================= -->
-
+<!-- 相機區域 -->
 <div id="cameraBox">
-
-    <!-- 手機後鏡頭畫面 -->
-
     <video id="video" autoplay playsinline></video>
-
-    <!-- IC文字掃描範圍 -->
-
     <div id="scanFrame"></div>
-
 </div>
 
 <br>
 
-<!-- 開啟相機 -->
+<!-- 按鈕 -->
+<button onclick="openCamera()">📷 開啟相機</button>
+<button onclick="saveScreenshot()">📸 截圖保存</button>
+<button onclick="resetResult()">🔄 重置</button>
 
-<button onclick="openCamera()">
+<!-- 自動偵測狀態 -->
+<div id="autoStatus" style="font-size:16px; color:#aaa; margin:5px;">請開啟相機</div>
 
-📷 開啟相機
-
-</button>
-
-<!-- 開始 OCR -->
-
-<!-- =========================
-     標準文字設定區
-========================= -->
-
-<!--
-使用 textarea
-可以直接貼：
-
-並保持換行
--->
-
-<!-- =========================
-     多筆標準文字管理
-========================= -->
-
+<!-- 標準文字管理 -->
 <h3>📌 標準文字</h3>
 
-<!-- 輸入新的IC標準 -->
-
 <textarea
-id="standardInput"
-placeholder="查詢文字串">
+    id="standardInput"
+    placeholder="輸入查詢文字串">
 </textarea>
 
 <br>
 
-<button onclick="addStandard()">
-
-➕ 新增
-
-</button>
-
-<button onclick="deleteStandard()">
-
-🗑 刪除
-
-</button>
+<button onclick="addStandard()">➕ 新增</button>
+<button onclick="deleteStandard()">🗑 刪除</button>
 
 <h4>已儲存清單</h4>
 
-<!-- 顯示目前所有標準 -->
-
-<div 
-id="standardListView"
-class="resultBox">
-
-尚無資料
-
-</div>
-
-<!-- =========================
-     OCR結果
-========================= -->
+<div id="standardListView" class="resultBox">尚無資料</div>
 
 <script>
 
-/*
-
-=========================
-變數設定
-=========================
-
-*/
+/* =========================
+   變數設定
+========================= */
 
 // 取得相機元件
-
-const video =
-document.getElementById("video");
+const video = document.getElementById("video");
 
 // 暫存圖片
-
-let canvas =
-document.createElement("canvas");
+let canvas = document.createElement("canvas");
 
 // Canvas繪圖工具
-
-let ctx =
-canvas.getContext("2d");
-
-// 儲存標準文字
-
-let standardText =
-localStorage.getItem("standardText") || "";
-
-// 載入之前保存的標準文字
-
-document.getElementById("standardInput").value =
-standardText;
-
-/*
-
-=========================
-開啟手機相機
-=========================
-
-*/
-
-async function openCamera(){
-
-try{
-
-    // 呼叫手機後鏡頭
-
-    let stream =
-    await navigator.mediaDevices.getUserMedia({
-
-        video:{
-
-            facingMode:"environment"
-
-        }
-
-    });
-
-    // 將影像放入video
-
-    video.srcObject =
-    stream;
-
-}
-catch(error){
-
-    alert(
-    "相機開啟失敗，請確認瀏覽器權限"
-    );
-}
-}
-
-/*
-
-=========================
-保存標準文字
-=========================
-
-*/
-
-function saveStandard(){
-
-    // 取得textarea內容
-
-    standardText =
-    document.getElementById("standardInput").value;
-
-    // 保存到手機瀏覽器
-
-    localStorage.setItem(
-        "standardText",
-        standardText
-    );
-
-    alert(
-    "標準文字已保存"
-    );
-
-}
-
-/*
-
-=========================
-取得相機畫面
-=========================
-
-*/
-
-function captureImage(){
-
-    // 設定圖片大小
-
-    canvas.width =
-    video.videoWidth;
-
-    canvas.height =
-    video.videoHeight;
-
-    // 將相機畫面畫入Canvas
-
-    ctx.drawImage(
-
-        video,
-
-        0,
-
-        0,
-
-        canvas.width,
-
-        canvas.height
-    );
-}
-   
-/*
-
-=========================
-圖片強化
-
-目的：
-
-IC雷雕字通常較淡
-
-先轉灰階增加辨識率
-
-=========================
-
-*/
-昂
-
-function enhanceImage(){
-
-    let imageData =
-    ctx.getImageData(
-
-        0,
-
-        0,
-
-        canvas.width,
-
-        canvas.height
-);
-
-    let data =
-    imageData.data;
-
-    for(
-        let i=0;
-        i<data.length;
-        i+=4
-    ){
-
-        // RGB平均值
-
-        let gray =
-        (
-
-        data[i]
-        +
-        data[i+1]
-        +
-        data[i+2]
-
-        ) / 3;
-
-        // 黑白化
-
-        let value =
-        gray > 130
-        ?
-        255
-        :
-        0;
-
-        data[i]=value;
-
-        data[i+1]=value;
-
-        data[i+2]=value;
+let ctx = canvas.getContext("2d");
+
+// 紀錄上一次結果（避免重複閃爍）
+let lastResult = "";
+
+// 自動偵測相關變數
+let autoMode = false;          // 自動模式開關
+let detectTimer = null;        // 偵測計時器
+let isOCRRunning = false;      // OCR執行中旗標
+let lastFrameData = null;      // 上一幀畫面資料
+let waitingForChange = false;  // 辨識完成後等待換IC
+const DIFF_THRESHOLD = 0.03;   // 差異門檻 3%（中靈敏度）
+const CHECK_INTERVAL = 500;    // 每 500ms 檢查一次
+
+// 從手機讀取之前保存的清單
+let standardList = JSON.parse(localStorage.getItem("standardList")) || [];
+
+// 初始化顯示清單
+updateStandardList();
+
+/* =========================
+   開啟手機相機
+========================= */
+
+async function openCamera() {
+    try {
+        let stream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: "environment" }
+        });
+        video.srcObject = stream;
+
+        // 等待相機畫面就緒後自動開始偵測
+        video.onloadedmetadata = function() {
+            startAutoDetect();
+        };
+    } catch(error) {
+        alert("相機開啟失敗，請確認瀏覽器權限");
     }
-
-    ctx.putImageData(
-
-        imageData,
-
-        0,
-
-        0
- );
 }
 
-<!-- =========================
-     OCR功能
-========================= -->
+/* =========================
+   自動開始偵測（開啟相機後自動呼叫）
+========================= */
 
-<script>
+function startAutoDetect() {
+    if (detectTimer) clearInterval(detectTimer);
+    autoMode = true;
+    waitingForChange = false;
+    lastFrameData = null;
+    document.getElementById("autoStatus").innerText = "自動偵測：開啟 ▸ 等待IC放入";
+    document.getElementById("autoStatus").style.color = "#00ff00";
+    detectTimer = setInterval(autoDetect, CHECK_INTERVAL);
+}
 
-/*
+/* =========================
+   停止自動偵測
+========================= */
 
-=========================
-開始辨識
+function stopAuto() {
+    autoMode = false;
+    clearInterval(detectTimer);
+    detectTimer = null;
+    document.getElementById("autoStatus").innerText = "自動偵測：關閉";
+    document.getElementById("autoStatus").style.color = "#aaa";
+}
 
-流程：
+/* =========================
+   自動偵測主邏輯
 
-1. 擷取相機畫面
-2. 圖片強化
-3. OCR辨識
-4. 顯示文字
-5. 判定OK / NG
+   流程：
+   1. 每 500ms 擷取畫面
+   2. 比對與上一幀的差異
+   3a. 等待換IC模式：差異夠大 → 重置，準備辨識
+   3b. 等待辨識模式：畫面穩定 → 觸發 OCR
+========================= */
 
-=========================
+async function autoDetect() {
+    if (isOCRRunning) return;
+    if (video.videoWidth === 0) return;
 
-*/
+    // 擷取目前畫面（縮小版，加快比對速度）
+    let tmpCanvas = document.createElement("canvas");
+    tmpCanvas.width = 80;
+    tmpCanvas.height = 60;
+    let tmpCtx = tmpCanvas.getContext("2d");
+    tmpCtx.drawImage(video, 0, 0, 80, 60);
+    let currentData = tmpCtx.getImageData(0, 0, 80, 60).data;
 
-async function startOCR(){
-
-    // 確認相機是否開啟
-
-    if(video.videoWidth === 0){
-
-        alert(
-        "請先開啟相機"
-        );
-
+    if (!lastFrameData) {
+        lastFrameData = currentData;
         return;
     }
 
-    // 擷取目前影像
+    // 計算畫面差異比例
+    let diffCount = 0;
+    for (let i = 0; i < currentData.length; i += 4) {
+        let diff = Math.abs(currentData[i] - lastFrameData[i])
+                 + Math.abs(currentData[i+1] - lastFrameData[i+1])
+                 + Math.abs(currentData[i+2] - lastFrameData[i+2]);
+        if (diff > 30) diffCount++;
+    }
+    let diffRatio = diffCount / (80 * 60);
 
+    lastFrameData = currentData;
+
+    if (waitingForChange) {
+        // 辨識完成後，等待IC被換走（差異夠大代表IC已移開）
+        if (diffRatio > DIFF_THRESHOLD) {
+            waitingForChange = false;
+            lastResult = "";
+            document.getElementById("status").innerText = "等待掃描";
+            document.getElementById("autoStatus").innerText = "自動偵測：開啟 ▸ 等待IC放入";
+        }
+    } else {
+        // 等待IC放入（畫面穩定才辨識，避免手還在移動時觸發）
+        if (diffRatio < DIFF_THRESHOLD) {
+            document.getElementById("autoStatus").innerText = "自動偵測：開啟 ▸ 偵測到IC，辨識中...";
+            await startOCR();
+            waitingForChange = true;
+            document.getElementById("autoStatus").innerText = "自動偵測：開啟 ▸ 等待換下一顆";
+        }
+    }
+}
+
+/* =========================
+   擷取相機畫面
+========================= */
+
+function captureImage() {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+}
+
+/* =========================
+   圖片強化（灰階黑白化）
+   目的：IC雷雕字較淡，增加辨識率
+========================= */
+
+function enhanceImage() {
+    let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    let data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        // RGB平均值（灰階）
+        let gray = (data[i] + data[i+1] + data[i+2]) / 3;
+        // 黑白化
+        let value = gray > 130 ? 255 : 0;
+        data[i]   = value;
+        data[i+1] = value;
+        data[i+2] = value;
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+}
+
+/* =========================
+   開始 OCR 辨識
+   流程：
+   1. 擷取相機畫面
+   2. 圖片強化
+   3. OCR辨識
+   4. 顯示文字
+   5. 判定 OK / NG
+========================= */
+
+async function startOCR() {
+    if (video.videoWidth === 0) {
+        alert("請先開啟相機");
+        return;
+    }
+
+    isOCRRunning = true;
     captureImage();
-
-    // 圖片強化
-
     enhanceImage();
 
-    // 使用Tesseract OCR
+    let result = await Tesseract.recognize(canvas, "eng", {
+        logger: function(info) { console.log(info); }
+    });
 
-    let result =
-
-    await Tesseract.recognize(
-
-        canvas,
-
-        "eng",
-      {
-
-            // 英數辨識
-
-            logger:function(info){
-
-                console.log(info);
-            }
-        }
-    );
-
-    // 取得OCR文字
-
-    let text =
-
-    result.data.text.trim();
-
-    // 清理文字格式
-
+    let text = result.data.text.trim();
     text = cleanText(text);
 
-    // 顯示辨識結果
-
-    document.getElementById(
-        "ocrResult"
-    ).innerText = text;
-
-    // 開始比對
+    document.getElementById("ocrResult").innerText = text;
 
     checkResult(text);
+    isOCRRunning = false;
 }
 
-/*
+/* =========================
+   文字整理
+   目的：移除多餘空白行，保留換行
+========================= */
 
-=========================
-文字整理
-
-目的：
-
-OCR容易產生：
-
-SKhynix
-
-H5CG46AGBD
-
-X017
-
-中間多空白
-
-這裡保留換行
-
-只刪除多餘空白行
-
-=========================
-
-*/
-
-function cleanText(text){
-
+function cleanText(text) {
     return text
-
-    // 分行
-
-    .split("\n")
-
-    // 移除空白行
-
-    .map(
-        line => line.trim()
-    )
-
-    .filter(
-        line => line !== ""
-    )
-
-    // 保留原本三行
-
-    .join("\n");
-
+        .split("\n")
+        .map(line => line.trim())
+        .filter(line => line !== "")
+        .join("\n");
 }
 
-/*
+/* =========================
+   比對格式化
+   規則：
+   ✅ 忽略大小寫
+   ✅ 忽略前後空白
+   ❌ 不刪除換行
+========================= */
 
-=========================
-比對格式化
-
-規則：
-
-✅ 忽略大小寫
-
-✅ 忽略前後空白
-
-❌ 不刪除換行
-
-=========================
-
-*/
-
-function normalizeText(text){
-
+function normalizeText(text) {
     return text
-
-    // 大小寫統一
-
-    .toUpperCase()
-
-    // 每行去除頭尾空白
-
-    .split("\n")
-
-    .map(
-        line => line.trim()
-    )
-
-    .join("\n");
+        .toUpperCase()
+        .split("\n")
+        .map(line => line.trim())
+        .join("\n");
 }
 
-/*
+/* =========================
+   OK / NG 判定
+========================= */
 
-=========================
-OK / NG 判定
+function checkResult(text) {
+    let scanText = normalizeText(text);
 
-例如：
-
-標準：
-
-SKhynix
-H5CG46AGBD
-X017
-
-
-OCR：
-
-SKHYNIX
-H5CG46AGBD
-X017
-
-判定 OK
-
-=========================
-
-*/
-   
-function checkResult(text){
-
-    let scanText =
-    normalizeText(text);
-
-    if(standardList.length === 0){
-
+    if (standardList.length === 0) {
         showNG();
-
         return;
     }
 
-    for(let item of standardList){
-
-        let targetText =
-        normalizeText(item);
-
-        if(scanText === targetText){
-
+    for (let item of standardList) {
+        let targetText = normalizeText(item);
+        if (scanText === targetText) {
             showOK();
-
             return;
-     }
-}
+        }
+    }
+
     showNG();
 }
 
-    if(
-        scanText === targetText
-    ){
+/* =========================
+   多筆標準文字管理
+========================= */
 
-        showOK();
+// 更新畫面清單
+function updateStandardList() {
+    let box = document.getElementById("standardListView");
+
+    if (standardList.length === 0) {
+        box.innerText = "尚無資料";
+        return;
     }
 
-    else{
-
-        showNG();
-    }
-}
-
-<!-- =========================
-     OK / NG 控制
-========================= -->
-
-<script>
-
-/*
-
-=========================
-紀錄上一次結果
-
-避免：
-
-同一顆IC放著
-
-一直：
-
-OK
-OK
-OK
-OK
-
-不停閃爍
-
-=========================
-
-*/
-
-let lastResult = "";
-
-// =========================
-// 多筆標準文字資料
-// =========================
-
-// 從手機讀取之前保存的清單
-
-let standardList =
-
-JSON.parse(
-
-localStorage.getItem(
-"standardList"
-)
-) || [];
-
-// 顯示清單
-
-function updateStandardList(){
-
-let box =
-
-document.getElementById(
-"standardListView"
-);
-
-if(standardList.length === 0){
-
-box.innerText =
-"尚無資料";
-
-return;
-}
-
-box.innerText =
-
-standardList
-
-.map(
-
-(item,index)=>
-
-"【"+(index+1)+"】\n"+item
-)
-
-.join(
-
-"\n\n"
-);
+    box.innerText = standardList
+        .map((item, index) => "【" + (index+1) + "】\n" + item)
+        .join("\n\n");
 }
 
 // 新增標準文字
+function addStandard() {
+    let text = document.getElementById("standardInput").value;
 
-function addStandard(){
+    if (text.trim() === "") {
+        alert("請輸入標準文字");
+        return;
+    }
 
-let text =
-
-document.getElementById(
-"standardInput"
-).value;
-
-if(
-text.trim()===""
-){
-
-alert(
-"請輸入標準文字"
-);
-
-return;
-}
-
-standardList.push(text);
-
-// 保存
-
-localStorage.setItem(
-
-"standardList",
-
-JSON.stringify(
-standardList
-)
-);
-
-// 清空輸入
-
-document.getElementById(
-"standardInput"
-).value="";
-
-// 更新畫面
-
-updateStandardList();
+    standardList.push(text);
+    localStorage.setItem("standardList", JSON.stringify(standardList));
+    document.getElementById("standardInput").value = "";
+    updateStandardList();
 }
 
 // 刪除最後一筆
-
-function deleteStandard(){
-
-if(
-standardList.length===0
-){
-
-return;
+function deleteStandard() {
+    if (standardList.length === 0) return;
+    standardList.pop();
+    localStorage.setItem("standardList", JSON.stringify(standardList));
+    updateStandardList();
 }
 
-standardList.pop();
+/* =========================
+   顯示 OK（綠色閃一下）
+========================= */
 
-localStorage.setItem(
-
-"standardList",
-
-JSON.stringify(
-standardList
-)
-);
-
-updateStandardList();
-}
-
-/*
-
-=========================
-顯示 OK
-
-效果：
-
-綠色閃一下
-
-=========================
-
-*/
-
-function showOK(){
-
-    // 如果上次也是OK
-
-    if(lastResult === "OK"){
-
-        return;
-    }
-
+function showOK() {
+    if (lastResult === "OK") return;
     lastResult = "OK";
 
-    let status =
+    let status = document.getElementById("status");
+    status.innerText = "🟩 OK";
+    status.classList.add("okFlash");
 
-    document.getElementById(
-        "status"
-    );
-
-    status.innerText =
-    "🟩 OK";
-
-    status.classList.add(
-        "okFlash"
-    );
-
-    setTimeout(function(){
-
-        status.classList.remove(
-            "okFlash"
-        );
-
-        status.innerText =
-        "等待掃描";
-
-    },500);
-
+    setTimeout(function() {
+        status.classList.remove("okFlash");
+        status.innerText = "等待掃描";
+    }, 500);
 }
 
-/*
+/* =========================
+   顯示 NG（紅色閃一下）
+========================= */
 
-=========================
-顯示 NG
-
-效果：
-
-紅色閃一下
-
-=========================
-
-*/
-
-function showNG(){
-
-    // 如果上次也是NG
-
-    if(lastResult === "NG"){
-
-        return;
-    }
-
+function showNG() {
+    if (lastResult === "NG") return;
     lastResult = "NG";
 
-    let status =
+    let status = document.getElementById("status");
+    status.innerText = "🟥 NG";
+    status.classList.add("ngFlash");
 
-    document.getElementById(
-        "status"
-    );
-
-    status.innerText =
-    "🟥 NG";
-
-    status.classList.add(
-        "ngFlash"
-    );
-
-    setTimeout(function(){
-
-        status.classList.remove(
-            "ngFlash"
-        );
-
-        status.innerText =
-        "等待掃描";
-
-    },500);
+    setTimeout(function() {
+        status.classList.remove("ngFlash");
+        status.innerText = "等待掃描";
+    }, 500);
 }
 
-/*
+/* =========================
+   截圖保存
+========================= */
 
-=========================
-截圖功能
-
-用途：
-
-保存目前IC照片
-
-方便NG確認
-
-=========================
-
-*/
-
-function saveScreenshot(){
-
-    // 建立圖片連結
-
-    let link =
-    document.createElement(
-        "a"
-    );
-
-    link.download =
-    "OCR_Image.jpg";
-
-    link.href =
-    canvas.toDataURL(
-        "image/jpeg"
-    );
-   
-    // 自動下載
-
+function saveScreenshot() {
+    let link = document.createElement("a");
+    link.download = "OCR_Image.jpg";
+    link.href = canvas.toDataURL("image/jpeg");
     link.click();
 }
 
-/*
+/* =========================
+   重置結果
+   目的：清除上一筆，允許重新偵測
+========================= */
 
-=========================
-偵測重新放入IC
-
-清除上一筆結果
-
-=========================
-
-*/
-
-function resetResult(){
-
+function resetResult() {
     lastResult = "";
+    isOCRRunning = false;
+    waitingForChange = false;
+    lastFrameData = null;
+    document.getElementById("status").innerText = "等待掃描";
+    document.getElementById("ocrResult").innerText = "";
+    // 若相機已開啟則重新啟動偵測
+    if (video.videoWidth > 0) {
+        startAutoDetect();
+    }
 }
+
+</script>
+</body>
+</html>
