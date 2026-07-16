@@ -282,10 +282,11 @@
   let emptyStreak = 0;
   let lastResultText = "";
 
-  const OCR_INTERVAL_IDLE = 300;
-  const OCR_INTERVAL_LOCKED = 300;
+  const OCR_INTERVAL_IDLE = 1400;
+  const OCR_INTERVAL_LOCKED = 1200;
   const EMPTY_STREAK_TO_RESET = 3;
   const MIN_TEXT_LEN = 3;
+
   // ---------- elements ----------
   const video = document.getElementById("video");
   const camPlaceholder = document.getElementById("camPlaceholder");
@@ -432,9 +433,9 @@
     worker = await Tesseract.createWorker("eng", 1, {
       logger: () => {}
     });
-    
-    tessedit_pageseg_mode = 6
-
+    await worker.setParameters({
+      tessedit_pageseg_mode: "6"
+    });
     workerReady = true;
     setStatus("scanning", "掃描中", "自動掃描中...");
   }
@@ -479,7 +480,7 @@
     captureCanvas.width = Math.max(1, Math.round(rect.sw * upscale));
     captureCanvas.height = Math.max(1, Math.round(rect.sh * upscale));
     const ctx = captureCanvas.getContext("2d");
-    ctx.filter = "grayscale(1) contrast(2.0) brightness(1.2)";
+    ctx.filter = "grayscale(1) contrast(1.35) brightness(1.05)";
     ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
     return captureCanvas;
   }
