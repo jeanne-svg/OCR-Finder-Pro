@@ -1,574 +1,714 @@
 <!DOCTYPE html>
-<html lang="zh-TW">
+<html lang="zh-Hant">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>OCR Finder Pro V3</title>
-<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>IC 印字辨識儀</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
 <style>
+  :root{
+    --bg: #0a0c0f;
+    --panel: #12161b;
+    --panel-2: #171c22;
+    --line: #232a32;
+    --text: #e6ebf0;
+    --text-dim: #7c8896;
+    --accent: #29d3c8;
+    --accent-dim: #1a7f79;
+    --ok: #22c55e;
+    --ok-dim: #123d22;
+    --warn: #eab308;
+    --warn-dim: #453a0a;
+    --bad: #ef4444;
+    --bad-dim: #3d1414;
+    --idle: #5b6773;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --sans: 'Inter', system-ui, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; background:var(--bg); color:var(--text);
+    font-family:var(--sans); -webkit-tap-highlight-color:transparent;
+    overscroll-behavior:none;
+  }
+  body{ min-height:100vh; display:flex; flex-direction:column; }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+  header{
+    padding:14px 16px 10px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:20;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand .dot{ width:9px; height:9px; border-radius:50%; background:var(--idle); box-shadow:0 0 8px var(--idle); transition:.25s;}
+  .brand .dot.scanning{ background:var(--accent); box-shadow:0 0 10px var(--accent); animation:pulse 1.2s infinite; }
+  .brand .dot.ok{ background:var(--ok); box-shadow:0 0 10px var(--ok); }
+  .brand .dot.warn{ background:var(--warn); box-shadow:0 0 10px var(--warn); }
+  .brand .dot.bad{ background:var(--bad); box-shadow:0 0 10px var(--bad); }
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+  .brand h1{ font-size:15px; margin:0; font-weight:700; letter-spacing:.02em; }
+  .brand small{ display:block; font-family:var(--mono); font-size:10.5px; color:var(--text-dim); letter-spacing:.04em; }
+  .iconbtn{
+    width:36px; height:36px; border-radius:10px; border:1px solid var(--line); background:var(--panel);
+    color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;
+  }
+  .iconbtn:active{ background:var(--panel-2); }
 
-body {
-    background: #000;
-    color: white;
-    font-family: Arial, "Microsoft JhengHei", sans-serif;
-    overflow: hidden;
-    height: 100vh;
-    width: 100vw;
-}
+  /* ---- camera area, 1/2 screen ---- */
+  .cam-wrap{
+    position:relative; width:100%; height:50vh; min-height:280px; background:#000; overflow:hidden;
+    border-bottom:1px solid var(--line);
+  }
+  video{ width:100%; height:100%; object-fit:cover; display:block; }
+  .cam-placeholder{
+    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; background:radial-gradient(circle at 50% 40%, #141a20, #0a0c0f);
+  }
+  .cam-placeholder svg{ opacity:.5; }
+  .startbtn{
+    background:var(--accent); color:#04211f; border:none; padding:11px 22px; border-radius:999px;
+    font-weight:700; font-size:14px; cursor:pointer; font-family:var(--sans);
+  }
+  .cam-placeholder p{ color:var(--text-dim); font-size:12.5px; margin:0; }
 
-/* 相機全螢幕 */
-#video {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw;
-    height: 100vh;
-    object-fit: cover;
-    z-index: 1;
-}
+  .scan-frame{
+    position:absolute; left:12%; top:32%; width:76%; height:36%;
+    border:3px solid var(--idle); border-radius:14px; transition:border-color .25s, box-shadow .25s;
+    box-shadow:0 0 0 2000px rgba(0,0,0,.38);
+    pointer-events:none;
+  }
+  .scan-frame::before, .scan-frame::after{
+    content:''; position:absolute; width:22px; height:22px; border-color:inherit;
+  }
+  .scan-frame.scanning{ border-color:var(--accent); box-shadow:0 0 0 2000px rgba(0,0,0,.32), 0 0 18px -2px var(--accent); }
+  .scan-frame.ok{ border-color:var(--ok); box-shadow:0 0 0 2000px rgba(0,0,0,.28), 0 0 22px -2px var(--ok); }
+  .scan-frame.warn{ border-color:var(--warn); box-shadow:0 0 0 2000px rgba(0,0,0,.28), 0 0 22px -2px var(--warn); }
+  .scan-frame.bad{ border-color:var(--bad); box-shadow:0 0 0 2000px rgba(0,0,0,.28), 0 0 22px -2px var(--bad); }
 
-/* 掃描框覆蓋層 */
-#overlay {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100vw;
-    height: 100vh;
-    z-index: 2;
-    pointer-events: none;
-}
+  .scanline{
+    position:absolute; left:2%; width:96%; height:2px; background:linear-gradient(90deg, transparent, var(--accent), transparent);
+    top:8%; opacity:0; pointer-events:none;
+  }
+  .scanline.active{ animation:sweep 1.6s linear infinite; opacity:.9; }
+  @keyframes sweep{ 0%{ top:6%; } 100%{ top:92%; } }
 
-/* 頂部狀態列 */
-#topBar {
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%;
-    z-index: 10;
-    background: rgba(0,0,0,0.55);
-    padding: 10px 16px 6px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-}
+  .cam-status{
+    position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:center; pointer-events:none;
+  }
+  .cam-status span{
+    font-family:var(--mono); font-size:11.5px; letter-spacing:.03em; color:var(--text);
+    background:rgba(10,12,15,.72); border:1px solid var(--line); padding:5px 12px; border-radius:999px;
+  }
 
-#statusText {
-    font-size: 26px;
-    font-weight: bold;
-}
+  .cam-tools{ position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:8px; }
+  .cam-tools button{
+    width:38px; height:38px; border-radius:10px; border:1px solid rgba(255,255,255,.15);
+    background:rgba(10,12,15,.55); backdrop-filter:blur(4px); color:#fff; display:flex; align-items:center;
+    justify-content:center; cursor:pointer;
+  }
+  .cam-tools button:active{ background:rgba(10,12,15,.8); }
 
-#autoStatus {
-    font-size: 13px;
-    color: #aaa;
-    text-align: right;
-}
+  /* ---- content ---- */
+  main{ flex:1; padding:14px 14px 90px; display:flex; flex-direction:column; gap:14px; }
 
-/* 底部結果列 */
-#bottomBar {
-    position: fixed;
-    bottom: 0; left: 0;
-    width: 100%;
-    z-index: 10;
-    background: rgba(0,0,0,0.65);
-    padding: 8px 16px 12px;
-}
+  .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; }
+  .card h2{
+    margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim);
+    display:flex; align-items:center; justify-content:space-between; font-weight:700;
+  }
+  .badge{
+    font-family:var(--mono); font-size:10.5px; padding:2px 8px; border-radius:999px; border:1px solid var(--line);
+    color:var(--text-dim); text-transform:none; letter-spacing:0;
+  }
+  .badge.ok{ color:var(--ok); border-color:var(--ok-dim); background:var(--ok-dim); }
+  .badge.warn{ color:var(--warn); border-color:var(--warn-dim); background:var(--warn-dim); }
+  .badge.bad{ color:var(--bad); border-color:var(--bad-dim); background:var(--bad-dim); }
 
-#ocrResult {
-    font-size: 15px;
-    white-space: pre-line;
-    line-height: 1.6;
-    min-height: 40px;
-}
+  .ocr-text{
+    font-family:var(--mono); font-size:14px; line-height:1.65; white-space:pre-wrap; word-break:break-word;
+    color:var(--text); min-height:44px; padding:10px 12px; background:var(--panel-2); border-radius:10px;
+    border:1px solid var(--line);
+  }
+  .ocr-text.empty{ color:var(--text-dim); font-style:italic; }
+  .row{ display:flex; gap:8px; margin-top:10px; }
+  .btn{
+    flex:1; border:1px solid var(--line); background:var(--panel-2); color:var(--text); border-radius:10px;
+    padding:10px; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--sans);
+    display:flex; align-items:center; justify-content:center; gap:6px;
+  }
+  .btn:active{ background:#1e252c; }
+  .btn.primary{ background:var(--accent); color:#04211f; border-color:var(--accent); }
+  .btn.ghost{ background:transparent; }
+  .btn svg{ width:15px; height:15px; }
 
-.line-ok   { color: #00ff88; }
-.line-ng   { color: #ff4444; }
-.line-miss { color: #ffdd00; }
+  .match-name{ font-family:var(--mono); font-size:12.5px; color:var(--accent); margin-bottom:8px; }
 
-/* 按鈕列 */
-#btnBar {
-    position: fixed;
-    bottom: 100px; left: 0;
-    width: 100%;
-    z-index: 10;
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-}
+  .cmp-line{
+    display:flex; align-items:flex-start; gap:9px; padding:7px 0; border-bottom:1px dashed var(--line);
+    font-family:var(--mono); font-size:13px;
+  }
+  .cmp-line:last-child{ border-bottom:none; }
+  .cmp-icon{ flex:0 0 auto; width:18px; height:18px; margin-top:1px; }
+  .cmp-text{ flex:1; word-break:break-word; }
+  .cmp-text .std{ color:var(--text); }
+  .cmp-text .got{ color:var(--text-dim); font-size:11.5px; margin-top:2px; }
+  .cmp-line.match .std{ color:var(--ok); }
+  .cmp-line.mismatch .std{ color:var(--bad); }
+  .placeholder-dim{ color:var(--text-dim); font-size:13px; font-family:var(--sans); }
 
-button {
-    padding: 10px 18px;
-    font-size: 15px;
-    border-radius: 20px;
-    border: none;
-    cursor: pointer;
-    background: rgba(60,60,60,0.85);
-    color: white;
-    backdrop-filter: blur(4px);
-}
+  /* standards manager */
+  textarea{
+    width:100%; min-height:96px; background:var(--panel-2); color:var(--text); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; font-family:var(--mono); font-size:13px; resize:vertical;
+  }
+  input[type=text]{
+    width:100%; background:var(--panel-2); color:var(--text); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; font-family:var(--sans); font-size:13px; margin-bottom:8px;
+  }
+  .std-item{
+    background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px;
+  }
+  .std-item-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .std-item-head b{ font-size:13px; }
+  .std-item pre{ margin:0; font-family:var(--mono); font-size:11.5px; color:var(--text-dim); white-space:pre-wrap; }
+  .del-btn{ background:none; border:none; color:var(--bad); cursor:pointer; font-size:11.5px; font-family:var(--sans); padding:2px 6px; }
 
-/* 設定面板 */
-#settingPanel {
-    display: none;
-    position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.92);
-    z-index: 20;
-    overflow-y: auto;
-    padding: 20px;
-}
+  .toast{
+    position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px); opacity:0;
+    background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:10px 18px; border-radius:999px;
+    font-size:13px; z-index:100; transition:.25s; pointer-events:none; font-family:var(--sans);
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
-#settingPanel h2 {
-    font-size: 18px;
-    margin-bottom: 12px;
-    text-align: center;
-}
+  canvas{ display:none; }
 
-#settingPanel textarea {
-    width: 100%;
-    height: 100px;
-    font-size: 16px;
-    padding: 8px;
-    border-radius: 8px;
-    background: #222;
-    color: white;
-    border: 1px solid #444;
-}
-
-.settingBtnRow {
-    display: flex;
-    gap: 8px;
-    margin: 8px 0;
-    flex-wrap: wrap;
-    justify-content: center;
-}
-
-.settingBtnRow button {
-    background: #333;
-}
-
-.listItem {
-    background: #222;
-    border-radius: 8px;
-    padding: 10px;
-    margin: 6px 0;
-    font-size: 14px;
-    white-space: pre-line;
-    border-left: 4px solid #555;
-}
-
+  details{ }
+  details > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; }
+  details > summary::-webkit-details-marker{ display:none; }
+  .chev{ transition:transform .2s; color:var(--text-dim); }
+  details[open] .chev{ transform:rotate(180deg); }
 </style>
 </head>
 <body>
 
-<!-- 相機 -->
-<video id="video" autoplay playsinline muted></video>
-
-<!-- 掃描框 SVG 覆蓋層 -->
-<svg id="overlay" xmlns="http://www.w3.org/2000/svg">
-  <!-- 暗化遮罩（掃描框外） -->
-  <defs>
-    <mask id="scanMask">
-      <rect width="100%" height="100%" fill="white"/>
-      <rect id="maskHole" fill="black"/>
-    </mask>
-  </defs>
-  <rect width="100%" height="100%" fill="rgba(0,0,0,0.35)" mask="url(#scanMask)"/>
-  <!-- 掃描框本體 -->
-  <rect id="scanRect" fill="none" stroke="#00ff00" stroke-width="3" rx="6"/>
-  <!-- 四角標記 -->
-  <g id="corners" stroke="#00ff00" stroke-width="4" fill="none">
-    <polyline id="c-tl"/>
-    <polyline id="c-tr"/>
-    <polyline id="c-bl"/>
-    <polyline id="c-br"/>
-  </g>
-  <!-- 逐行比對結果標籤 -->
-  <g id="lineLabels"></g>
-</svg>
-
-<!-- 頂部狀態 -->
-<div id="topBar">
-    <div id="statusText">等待掃描</div>
-    <div id="autoStatus">請開啟相機</div>
-</div>
-
-<!-- 底部OCR結果 -->
-<div id="bottomBar">
-    <div id="ocrResult">—</div>
-</div>
-
-<!-- 按鈕 -->
-<div id="btnBar">
-    <button onclick="openCamera()">📷 相機</button>
-    <button onclick="openSetting()">⚙️ 標準文字</button>
-    <button onclick="resetResult()">🔄 重置</button>
-    <button onclick="saveScreenshot()">📸 截圖</button>
-</div>
-
-<!-- 設定面板 -->
-<div id="settingPanel">
-    <h2>📌 標準文字管理</h2>
-    <textarea id="standardInput" placeholder="輸入標準文字（可多行）"></textarea>
-    <div class="settingBtnRow">
-        <button onclick="addStandard()">➕ 新增</button>
-        <button onclick="deleteStandard()">🗑 刪除最後一筆</button>
-        <button onclick="closeSetting()">✅ 完成</button>
+<header>
+  <div class="brand">
+    <span class="dot" id="statusDot"></span>
+    <div>
+      <h1>IC 印字辨識儀</h1>
+      <small id="statusLabel">STANDBY</small>
     </div>
-    <div id="standardListView"></div>
+  </div>
+  <button class="iconbtn" id="settingsToggle" title="標準文字設定">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06A1.65 1.65 0 004.6 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06A1.65 1.65 0 009 4.6a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"></path></svg>
+  </button>
+</header>
+
+<div class="cam-wrap" id="camWrap">
+  <video id="video" playsinline muted autoplay></video>
+  <div class="cam-placeholder" id="camPlaceholder">
+    <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#7c8896" stroke-width="1.6"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+    <button class="startbtn" id="startBtn">啟動相機</button>
+    <p>對準 IC 表面印字，自動開始掃描</p>
+  </div>
+  <div class="scan-frame" id="scanFrame"></div>
+  <div class="scanline" id="scanLine"></div>
+  <div class="cam-tools">
+    <button id="shotBtn" title="截圖">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
+    </button>
+    <button id="switchCamBtn" title="切換鏡頭">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><polyline points="23 20 23 14 17 14"></polyline><path d="M20.49 9A9 9 0 005.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 013.51 15"></path></svg>
+    </button>
+  </div>
+  <div class="cam-status"><span id="camStatusText">尚未啟動相機</span></div>
 </div>
+
+<main>
+  <div class="card">
+    <h2>OCR 辨識結果 <span class="badge" id="ocrBadge">等待中</span></h2>
+    <div class="ocr-text empty" id="ocrText">尚無辨識結果</div>
+    <div class="row">
+      <button class="btn primary" id="copyBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+        複製文字
+      </button>
+      <button class="btn ghost" id="resetBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 102.13-9.36L1 10"></path></svg>
+        手動重置
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>比對結果 <span class="badge" id="cmpBadge">—</span></h2>
+    <div class="match-name" id="matchName" style="display:none;"></div>
+    <div id="cmpList"><div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div></div>
+  </div>
+
+  <div class="card" id="settingsCard">
+    <details id="settingsDetails">
+      <summary><h2 style="margin:0; border:none;">標準文字管理 <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg></h2></summary>
+      <div style="margin-top:12px;">
+        <input type="text" id="stdNameInput" placeholder="標準文字名稱（例：STM32F103C8T6）">
+        <textarea id="stdTextInput" placeholder="貼上多行標準文字，逐行比對&#10;例：&#10;STM32F103C8T6&#10;GENUINE CHIP&#10;2024 ABCD"></textarea>
+        <div class="row">
+          <button class="btn primary" id="addStdBtn">新增標準文字</button>
+        </div>
+        <div style="margin-top:14px;" id="stdList"></div>
+      </div>
+    </details>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+<canvas id="captureCanvas"></canvas>
+<canvas id="shotCanvas"></canvas>
 
 <script>
+(function(){
+  "use strict";
 
-const video = document.getElementById("video");
-let canvas  = document.createElement("canvas");
-let ctx     = canvas.getContext("2d");
+  // ---------- state ----------
+  const STORAGE_KEY = "ic_ocr_standards_v1";
+  let standards = [];
+  let stream = null;
+  let currentFacing = "environment";
+  let worker = null;
+  let workerReady = false;
+  let ocrTimer = null;
+  let isRecognizing = false;
+  let state = "idle"; // idle | locked
+  let emptyStreak = 0;
+  let lastResultText = "";
 
-let lastResult       = "";
-let autoMode         = false;
-let detectTimer      = null;
-let isOCRRunning     = false;
-let lastFrameData    = null;
-let waitingForChange = false;
-let stableCount      = 0;
-const DIFF_THRESHOLD = 0.03;
-const CHECK_INTERVAL = 500;
-const STABLE_FRAMES  = 3;
+  const OCR_INTERVAL_IDLE = 1400;
+  const OCR_INTERVAL_LOCKED = 1200;
+  const EMPTY_STREAK_TO_RESET = 3;
+  const MIN_TEXT_LEN = 3;
 
-// 掃描框尺寸（百分比）
-const SCAN = { left: 0.08, top: 0.28, width: 0.84, height: 0.30 };
+  // ---------- elements ----------
+  const video = document.getElementById("video");
+  const camPlaceholder = document.getElementById("camPlaceholder");
+  const startBtn = document.getElementById("startBtn");
+  const camWrap = document.getElementById("camWrap");
+  const scanFrame = document.getElementById("scanFrame");
+  const scanLine = document.getElementById("scanLine");
+  const camStatusText = document.getElementById("camStatusText");
+  const statusDot = document.getElementById("statusDot");
+  const statusLabel = document.getElementById("statusLabel");
+  const ocrText = document.getElementById("ocrText");
+  const ocrBadge = document.getElementById("ocrBadge");
+  const cmpBadge = document.getElementById("cmpBadge");
+  const cmpList = document.getElementById("cmpList");
+  const matchName = document.getElementById("matchName");
+  const copyBtn = document.getElementById("copyBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const shotBtn = document.getElementById("shotBtn");
+  const switchCamBtn = document.getElementById("switchCamBtn");
+  const settingsToggle = document.getElementById("settingsToggle");
+  const settingsDetails = document.getElementById("settingsDetails");
+  const stdNameInput = document.getElementById("stdNameInput");
+  const stdTextInput = document.getElementById("stdTextInput");
+  const addStdBtn = document.getElementById("addStdBtn");
+  const stdList = document.getElementById("stdList");
+  const toast = document.getElementById("toast");
+  const captureCanvas = document.getElementById("captureCanvas");
+  const shotCanvas = document.getElementById("shotCanvas");
 
-let standardList = JSON.parse(localStorage.getItem("standardList")) || [];
-updateStandardList();
-updateScanFrame("#00ff00");
-
-/* =========================
-   掃描框繪製
-========================= */
-function updateScanFrame(color) {
-    let W = window.innerWidth;
-    let H = window.innerHeight;
-
-    let x = W * SCAN.left;
-    let y = H * SCAN.top;
-    let w = W * SCAN.width;
-    let h = H * SCAN.height;
-    let cs = 24; // 角標長度
-
-    // 遮罩孔
-    let hole = document.getElementById("maskHole");
-    hole.setAttribute("x", x); hole.setAttribute("y", y);
-    hole.setAttribute("width", w); hole.setAttribute("height", h);
-    hole.setAttribute("rx", 6);
-
-    // 框
-    let rect = document.getElementById("scanRect");
-    rect.setAttribute("x", x); rect.setAttribute("y", y);
-    rect.setAttribute("width", w); rect.setAttribute("height", h);
-    rect.setAttribute("stroke", color);
-
-    // 四角
-    document.getElementById("c-tl").setAttribute("points", `${x+cs},${y} ${x},${y} ${x},${y+cs}`);
-    document.getElementById("c-tr").setAttribute("points", `${x+w-cs},${y} ${x+w},${y} ${x+w},${y+cs}`);
-    document.getElementById("c-bl").setAttribute("points", `${x+cs},${y+h} ${x},${y+h} ${x},${y+h-cs}`);
-    document.getElementById("c-br").setAttribute("points", `${x+w-cs},${y+h} ${x+w},${y+h} ${x+w},${y+h-cs}`);
-
-    document.querySelectorAll("#corners polyline").forEach(p => p.setAttribute("stroke", color));
-}
-
-window.addEventListener("resize", () => updateScanFrame(currentFrameColor));
-let currentFrameColor = "#00ff00";
-
-/* =========================
-   開啟相機
-========================= */
-async function openCamera() {
-    try {
-        let stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment", width: { ideal: 1920 }, height: { ideal: 1080 } }
-        });
-        video.srcObject = stream;
-        video.onloadedmetadata = function() {
-            startAutoDetect();
-        };
-    } catch(e) {
-        alert("相機開啟失敗，請確認瀏覽器權限");
+  // ---------- storage ----------
+  function loadStandards(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      standards = raw ? JSON.parse(raw) : [];
+    }catch(e){ standards = []; }
+    renderStdList();
+  }
+  function saveStandards(){
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(standards));
+  }
+  function renderStdList(){
+    if(standards.length === 0){
+      stdList.innerHTML = '<div class="placeholder-dim">尚未新增任何標準文字。</div>';
+      return;
     }
-}
+    stdList.innerHTML = "";
+    standards.forEach((s, idx) => {
+      const div = document.createElement("div");
+      div.className = "std-item";
+      const head = document.createElement("div");
+      head.className = "std-item-head";
+      const b = document.createElement("b");
+      b.textContent = s.name || ("未命名 " + (idx+1));
+      const del = document.createElement("button");
+      del.className = "del-btn";
+      del.textContent = "刪除";
+      del.onclick = () => {
+        standards.splice(idx, 1);
+        saveStandards();
+        renderStdList();
+      };
+      head.appendChild(b);
+      head.appendChild(del);
+      const pre = document.createElement("pre");
+      pre.textContent = s.text;
+      div.appendChild(head);
+      div.appendChild(pre);
+      stdList.appendChild(div);
+    });
+  }
 
-/* =========================
-   自動偵測
-========================= */
-function startAutoDetect() {
-    if (detectTimer) clearInterval(detectTimer);
-    autoMode = true;
-    waitingForChange = false;
-    lastFrameData = null;
-    stableCount = 0;
-    setAutoStatus("等待IC放入", "#00ff00");
-    detectTimer = setInterval(autoDetect, CHECK_INTERVAL);
-}
+  addStdBtn.addEventListener("click", () => {
+    const name = stdNameInput.value.trim();
+    const text = stdTextInput.value.replace(/\r\n/g, "\n").trim();
+    if(!text){ showToast("請輸入標準文字內容"); return; }
+    standards.push({ name: name || ("標準文字 " + (standards.length+1)), text });
+    saveStandards();
+    renderStdList();
+    stdNameInput.value = "";
+    stdTextInput.value = "";
+    showToast("已新增標準文字");
+  });
 
-function setAutoStatus(msg, color) {
-    let el = document.getElementById("autoStatus");
-    el.innerText = msg;
-    el.style.color = color;
-}
+  settingsToggle.addEventListener("click", () => {
+    settingsDetails.open = !settingsDetails.open;
+    settingsDetails.scrollIntoView({ behavior:"smooth", block:"start" });
+  });
 
-async function autoDetect() {
-    if (isOCRRunning || video.videoWidth === 0) return;
+  // ---------- toast ----------
+  let toastTimer = null;
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
+  }
 
-    let tmp = document.createElement("canvas");
-    tmp.width = 80; tmp.height = 60;
-    let tCtx = tmp.getContext("2d");
-    tCtx.drawImage(video, 0, 0, 80, 60);
-    let cur = tCtx.getImageData(0, 0, 80, 60).data;
+  // ---------- status ----------
+  function setStatus(kind, label, camText){
+    statusDot.className = "dot" + (kind ? " " + kind : "");
+    statusLabel.textContent = label;
+    if(camText) camStatusText.textContent = camText;
+  }
+  function setFrame(kind){
+    scanFrame.className = "scan-frame" + (kind ? " " + kind : "");
+  }
 
-    if (!lastFrameData) { lastFrameData = cur; return; }
-
-    let diff = 0;
-    for (let i = 0; i < cur.length; i += 4) {
-        if (Math.abs(cur[i]-lastFrameData[i])
-          + Math.abs(cur[i+1]-lastFrameData[i+1])
-          + Math.abs(cur[i+2]-lastFrameData[i+2]) > 30) diff++;
+  // ---------- camera ----------
+  async function startCamera(facing){
+    try{
+      if(stream){ stream.getTracks().forEach(t => t.stop()); }
+      setStatus(null, "相機啟動中", "啟動相機中...");
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: facing || currentFacing }, width:{ ideal:1920 }, height:{ ideal:1080 } },
+        audio: false
+      });
+      video.srcObject = stream;
+      await video.play();
+      camPlaceholder.style.display = "none";
+      setStatus("scanning", "掃描中", "自動掃描中...");
+      setFrame("scanning");
+      scanLine.classList.add("active");
+      await ensureWorker();
+      resetToIdle(true);
+      scheduleOcr(200);
+    }catch(err){
+      console.error(err);
+      setStatus("bad", "相機錯誤", "無法啟動相機：" + err.message);
+      showToast("相機啟動失敗，請確認權限");
     }
-    let ratio = diff / (80 * 60);
-    lastFrameData = cur;
+  }
 
-    if (waitingForChange) {
-        if (ratio > DIFF_THRESHOLD) {
-            waitingForChange = false;
-            stableCount = 0;
-            lastResult = "";
-            document.getElementById("statusText").innerText = "等待掃描";
-            document.getElementById("ocrResult").innerHTML = "—";
-            setFrameColor("#00ff00");
-            setAutoStatus("等待IC放入", "#00ff00");
+  startBtn.addEventListener("click", () => startCamera(currentFacing));
+
+  switchCamBtn.addEventListener("click", () => {
+    currentFacing = currentFacing === "environment" ? "user" : "environment";
+    startCamera(currentFacing);
+  });
+
+  // ---------- tesseract worker ----------
+  async function ensureWorker(){
+    if(workerReady) return;
+    setStatus(null, "載入辨識引擎", "載入 OCR 引擎中...");
+    worker = await Tesseract.createWorker("eng", 1, {
+      logger: () => {}
+    });
+    await worker.setParameters({
+      tessedit_pageseg_mode: "6"
+    });
+    workerReady = true;
+    setStatus("scanning", "掃描中", "自動掃描中...");
+  }
+
+  // ---------- crop mapping (object-fit: cover) ----------
+  function getCropRect(){
+    const vw = video.videoWidth, vh = video.videoHeight;
+    if(!vw || !vh) return null;
+    const cw = camWrap.clientWidth, ch = camWrap.clientHeight;
+    const videoAspect = vw / vh;
+    const containerAspect = cw / ch;
+    let renderW, renderH, offsetX, offsetY;
+    if(videoAspect > containerAspect){
+      renderH = ch;
+      renderW = ch * videoAspect;
+      offsetX = (renderW - cw) / 2;
+      offsetY = 0;
+    }else{
+      renderW = cw;
+      renderH = cw / videoAspect;
+      offsetX = 0;
+      offsetY = (renderH - ch) / 2;
+    }
+    const scale = vw / renderW;
+    const boxRect = scanFrame.getBoundingClientRect();
+    const wrapRect = camWrap.getBoundingClientRect();
+    const boxX = boxRect.left - wrapRect.left;
+    const boxY = boxRect.top - wrapRect.top;
+    const boxW = boxRect.width;
+    const boxH = boxRect.height;
+    const sx = (boxX + offsetX) * scale;
+    const sy = (boxY + offsetY) * scale;
+    const sw = boxW * scale;
+    const sh = boxH * scale;
+    return { sx, sy, sw, sh };
+  }
+
+  function captureCroppedCanvas(){
+    const rect = getCropRect();
+    if(!rect) return null;
+    const upscale = 2;
+    captureCanvas.width = Math.max(1, Math.round(rect.sw * upscale));
+    captureCanvas.height = Math.max(1, Math.round(rect.sh * upscale));
+    const ctx = captureCanvas.getContext("2d");
+    ctx.filter = "grayscale(1) contrast(1.35) brightness(1.05)";
+    ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
+    return captureCanvas;
+  }
+
+  // ---------- OCR loop ----------
+  function scheduleOcr(delay){
+    clearTimeout(ocrTimer);
+    ocrTimer = setTimeout(runOcr, delay != null ? delay : (state === "idle" ? OCR_INTERVAL_IDLE : OCR_INTERVAL_LOCKED));
+  }
+
+  async function runOcr(){
+    if(!stream || !workerReady || isRecognizing){ scheduleOcr(); return; }
+    const canvas = captureCroppedCanvas();
+    if(!canvas){ scheduleOcr(); return; }
+    isRecognizing = true;
+    if(state === "idle"){ setStatus("scanning", "辨識中", "辨識中，請保持穩定..."); }
+    try{
+      const { data } = await worker.recognize(canvas);
+      const rawText = (data && data.text ? data.text : "").trim();
+      handleOcrResult(rawText);
+    }catch(err){
+      console.error(err);
+    }finally{
+      isRecognizing = false;
+      scheduleOcr();
+    }
+  }
+
+  function cleanText(t){
+    return t.split("\n").map(l => l.trim()).filter(l => l.length > 0).join("\n");
+  }
+
+  function handleOcrResult(rawText){
+    const cleaned = cleanText(rawText);
+    const meaningfulLen = cleaned.replace(/\s/g, "").length;
+
+    if(state === "idle"){
+      if(meaningfulLen >= MIN_TEXT_LEN){
+        lockResult(cleaned);
+      }else{
+        setStatus("scanning", "掃描中", "自動掃描中...");
+      }
+    }else if(state === "locked"){
+      if(meaningfulLen < MIN_TEXT_LEN){
+        emptyStreak++;
+        if(emptyStreak >= EMPTY_STREAK_TO_RESET){
+          resetToIdle();
         }
-    } else {
-        if (ratio < DIFF_THRESHOLD) {
-            stableCount++;
-            if (stableCount >= STABLE_FRAMES) {
-                setAutoStatus("辨識中...", "#ffff00");
-                await startOCR();
-                waitingForChange = true;
-                stableCount = 0;
-                setAutoStatus("等待換下一顆", "#00aaff");
-            }
-        } else {
-            stableCount = 0;
+      }else{
+        emptyStreak = 0;
+      }
+    }
+  }
+
+  function lockResult(text){
+    state = "locked";
+    emptyStreak = 0;
+    lastResultText = text;
+    scanLine.classList.remove("active");
+    ocrText.textContent = text;
+    ocrText.classList.remove("empty");
+    ocrBadge.textContent = "已鎖定";
+    ocrBadge.className = "badge ok";
+
+    const cmp = compareAgainstStandards(text);
+    renderComparison(cmp);
+
+    if(cmp.kind === "green"){
+      setFrame("ok"); setStatus("ok", "完全符合", "比對成功：完全符合，移開 IC 以重新掃描");
+    }else if(cmp.kind === "yellow"){
+      setFrame("warn"); setStatus("warn", "部分符合", "部分符合，移開 IC 以重新掃描");
+    }else{
+      setFrame("bad"); setStatus("bad", "完全不符", "未通過比對，移開 IC 以重新掃描");
+    }
+  }
+
+  function resetToIdle(silent){
+    state = "idle";
+    emptyStreak = 0;
+    lastResultText = "";
+    scanLine.classList.add("active");
+    setFrame("scanning");
+    ocrText.textContent = "尚無辨識結果";
+    ocrText.classList.add("empty");
+    ocrBadge.textContent = "等待中";
+    ocrBadge.className = "badge";
+    cmpBadge.textContent = "—";
+    cmpBadge.className = "badge";
+    matchName.style.display = "none";
+    cmpList.innerHTML = '<div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div>';
+    if(!silent) setStatus("scanning", "掃描中", "已重置，自動掃描中...");
+  }
+
+  resetBtn.addEventListener("click", () => resetToIdle());
+
+  // ---------- comparison logic ----------
+  function normLine(l){
+    return l.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  }
+
+  function compareAgainstStandards(ocrTextRaw){
+    if(standards.length === 0){
+      return { kind: "gray", stdName: null, lines: [], noStandards: true };
+    }
+    const ocrLines = ocrTextRaw.split("\n").filter(l => l.trim().length > 0);
+    const normOcrLines = ocrLines.map(normLine);
+
+    let best = null;
+    standards.forEach(s => {
+      const stdLines = s.text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
+      if(stdLines.length === 0) return;
+      const lineResults = stdLines.map(stdLine => {
+        const nStd = normLine(stdLine);
+        let matchedOcrLine = null;
+        for(let i = 0; i < normOcrLines.length; i++){
+          const nOcr = normOcrLines[i];
+          if(!nOcr) continue;
+          if(nOcr === nStd || (nStd.length >= 3 && (nOcr.includes(nStd) || nStd.includes(nOcr)))){
+            matchedOcrLine = ocrLines[i];
+            break;
+          }
         }
-    }
-}
-
-/* =========================
-   擷取掃描框區域
-========================= */
-function captureImage() {
-    let vw = video.videoWidth;
-    let vh = video.videoHeight;
-    let sx = vw * SCAN.left;
-    let sy = vh * SCAN.top;
-    let sw = vw * SCAN.width;
-    let sh = vh * SCAN.height;
-    canvas.width = sw;
-    canvas.height = sh;
-    ctx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
-}
-
-function enhanceImage() {
-    let d = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    for (let i = 0; i < d.data.length; i += 4) {
-        let g = (d.data[i]+d.data[i+1]+d.data[i+2])/3;
-        let v = g > 130 ? 255 : 0;
-        d.data[i] = d.data[i+1] = d.data[i+2] = v;
-    }
-    ctx.putImageData(d, 0, 0);
-}
-
-/* =========================
-   OCR
-========================= */
-async function startOCR() {
-    if (video.videoWidth === 0) return;
-    isOCRRunning = true;
-    captureImage();
-    enhanceImage();
-
-    let result = await Tesseract.recognize(canvas, "eng", {
-        logger: m => console.log(m)
+        return { std: stdLine, matched: matchedOcrLine !== null, got: matchedOcrLine };
+      });
+      const matchCount = lineResults.filter(r => r.matched).length;
+      const ratio = matchCount / stdLines.length;
+      if(!best || ratio > best.ratio){
+        best = { ratio, stdName: s.name, lines: lineResults };
+      }
     });
 
-    let text = cleanText(result.data.text.trim());
-    checkResult(text);
-    isOCRRunning = false;
-}
+    if(!best){
+      return { kind: "gray", stdName: null, lines: [], noStandards: true };
+    }
+    let kind = "red";
+    if(best.ratio >= 0.999) kind = "green";
+    else if(best.ratio > 0) kind = "yellow";
+    return { kind, stdName: best.stdName, lines: best.lines, ratio: best.ratio };
+  }
 
-function cleanText(text) {
-    return text.split("\n").map(l=>l.trim()).filter(l=>l!=="").join("\n");
-}
+  function renderComparison(cmp){
+    if(cmp.noStandards){
+      matchName.style.display = "none";
+      cmpBadge.textContent = "無標準文字";
+      cmpBadge.className = "badge";
+      cmpList.innerHTML = '<div class="placeholder-dim">請先在下方新增標準文字以進行比對。</div>';
+      return;
+    }
+    matchName.style.display = "block";
+    matchName.textContent = "比對對象：" + cmp.stdName;
 
-function normalizeText(text) {
-    return text.toUpperCase().split("\n").map(l=>l.trim()).join("\n");
-}
-
-/* =========================
-   逐行比對 + 框色判定
-========================= */
-function checkResult(ocrText) {
-    if (standardList.length === 0) {
-        showFrame("NG", ocrText, null);
-        return;
+    if(cmp.kind === "green"){
+      cmpBadge.textContent = "完全符合"; cmpBadge.className = "badge ok";
+    }else if(cmp.kind === "yellow"){
+      cmpBadge.textContent = "部分符合"; cmpBadge.className = "badge warn";
+    }else{
+      cmpBadge.textContent = "完全不符"; cmpBadge.className = "badge bad";
     }
 
-    let ocrLines = normalizeText(ocrText).split("\n");
-    let bestMatch = null;
-    let bestScore = -1;
+    cmpList.innerHTML = "";
+    cmp.lines.forEach(r => {
+      const row = document.createElement("div");
+      row.className = "cmp-line " + (r.matched ? "match" : "mismatch");
+      const icon = document.createElement("div");
+      icon.className = "cmp-icon";
+      icon.innerHTML = r.matched
+        ? '<svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>'
+        : '<svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
+      const textWrap = document.createElement("div");
+      textWrap.className = "cmp-text";
+      const stdDiv = document.createElement("div");
+      stdDiv.className = "std";
+      stdDiv.textContent = r.std;
+      textWrap.appendChild(stdDiv);
+      if(!r.matched){
+        const gotDiv = document.createElement("div");
+        gotDiv.className = "got";
+        gotDiv.textContent = "（未在辨識結果中找到對應行）";
+        textWrap.appendChild(gotDiv);
+      }
+      row.appendChild(icon);
+      row.appendChild(textWrap);
+      cmpList.appendChild(row);
+    });
+  }
 
-    // 找最佳匹配的標準文字
-    for (let item of standardList) {
-        let stdLines = normalizeText(item).split("\n");
-        let matchCount = 0;
-        let total = Math.max(ocrLines.length, stdLines.length);
-        for (let i = 0; i < Math.min(ocrLines.length, stdLines.length); i++) {
-            if (ocrLines[i] === stdLines[i]) matchCount++;
-        }
-        let score = matchCount / total;
-        if (score > bestScore) {
-            bestScore = score;
-            bestMatch = { stdLines, matchCount, total, score };
-        }
+  // ---------- copy / screenshot ----------
+  copyBtn.addEventListener("click", async () => {
+    const text = ocrText.textContent;
+    if(!text || ocrText.classList.contains("empty")){ showToast("尚無文字可複製"); return; }
+    try{
+      await navigator.clipboard.writeText(text);
+      showToast("已複製到剪貼簿");
+    }catch(e){
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
+      showToast("已複製到剪貼簿");
     }
+  });
 
-    if (!bestMatch) { showFrame("NG", ocrText, null); return; }
+  shotBtn.addEventListener("click", () => {
+    if(!stream){ showToast("請先啟動相機"); return; }
+    shotCanvas.width = video.videoWidth;
+    shotCanvas.height = video.videoHeight;
+    const ctx = shotCanvas.getContext("2d");
+    ctx.drawImage(video, 0, 0, shotCanvas.width, shotCanvas.height);
+    shotCanvas.toBlob(blob => {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      const ts = new Date().toISOString().replace(/[:.]/g, "-");
+      a.href = url;
+      a.download = "ic-scan-" + ts + ".png";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      showToast("截圖已儲存");
+    }, "image/png");
+  });
 
-    let { stdLines, matchCount, total } = bestMatch;
-    let ocrL = normalizeText(ocrText).split("\n");
-
-    if (matchCount === total && ocrL.length === stdLines.length) {
-        showFrame("OK", ocrText, { ocrLines: ocrL, stdLines });
-    } else if (matchCount === 0) {
-        showFrame("NG", ocrText, { ocrLines: ocrL, stdLines });
-    } else {
-        showFrame("PARTIAL", ocrText, { ocrLines: ocrL, stdLines });
-    }
-}
-
-/* =========================
-   顯示結果與框色
-========================= */
-function showFrame(type, ocrText, compareData) {
-    let color, statusMsg, statusColor;
-
-    if (type === "OK") {
-        color = "#00ff00"; statusMsg = "🟢 OK"; statusColor = "#00ff88";
-        lastResult = "OK";
-    } else if (type === "PARTIAL") {
-        color = "#ffdd00"; statusMsg = "🟡 部分符合"; statusColor = "#ffdd00";
-        lastResult = "PARTIAL";
-    } else {
-        color = "#ff3333"; statusMsg = "🔴 NG"; statusColor = "#ff4444";
-        lastResult = "NG";
-    }
-
-    setFrameColor(color);
-    document.getElementById("statusText").innerText = statusMsg;
-    document.getElementById("statusText").style.color = statusColor;
-
-    // 逐行顯示比對結果
-    if (compareData) {
-        let { ocrLines, stdLines } = compareData;
-        let maxLen = Math.max(ocrLines.length, stdLines.length);
-        let html = "";
-        for (let i = 0; i < maxLen; i++) {
-            let ocr = ocrLines[i] || "";
-            let std = stdLines[i] || "";
-            if (ocr === std) {
-                html += `<span class="line-ok">✅ ${ocr}</span>\n`;
-            } else if (ocr && !std) {
-                html += `<span class="line-ng">➕ ${ocr} (多餘)</span>\n`;
-            } else if (!ocr && std) {
-                html += `<span class="line-miss">❓ 缺少: ${std}</span>\n`;
-            } else {
-                html += `<span class="line-ng">❌ ${ocr}</span><span class="line-miss"> (應為: ${std})</span>\n`;
-            }
-        }
-        document.getElementById("ocrResult").innerHTML = html;
-    } else {
-        document.getElementById("ocrResult").innerText = ocrText || "（無法辨識）";
-    }
-}
-
-function setFrameColor(color) {
-    currentFrameColor = color;
-    updateScanFrame(color);
-}
-
-/* =========================
-   重置
-========================= */
-function resetResult() {
-    lastResult = "";
-    isOCRRunning = false;
-    waitingForChange = false;
-    lastFrameData = null;
-    stableCount = 0;
-    document.getElementById("statusText").innerText = "等待掃描";
-    document.getElementById("statusText").style.color = "white";
-    document.getElementById("ocrResult").innerHTML = "—";
-    setFrameColor("#00ff00");
-    if (video.videoWidth > 0) startAutoDetect();
-}
-
-/* =========================
-   截圖
-========================= */
-function saveScreenshot() {
-    if (!canvas.width) return;
-    let link = document.createElement("a");
-    link.download = "OCR_Image.jpg";
-    link.href = canvas.toDataURL("image/jpeg");
-    link.click();
-}
-
-/* =========================
-   設定面板
-========================= */
-function openSetting() {
-    document.getElementById("settingPanel").style.display = "block";
-}
-
-function closeSetting() {
-    document.getElementById("settingPanel").style.display = "none";
-}
-
-function updateStandardList() {
-    let box = document.getElementById("standardListView");
-    if (!box) return;
-    if (standardList.length === 0) {
-        box.innerHTML = "<div style='color:#aaa;text-align:center;padding:10px'>尚無資料</div>";
-        return;
-    }
-    box.innerHTML = standardList
-        .map((item, i) => `<div class="listItem"><b>【${i+1}】</b>\n${item}</div>`)
-        .join("");
-}
-
-function addStandard() {
-    let text = document.getElementById("standardInput").value;
-    if (text.trim() === "") { alert("請輸入標準文字"); return; }
-    standardList.push(text);
-    localStorage.setItem("standardList", JSON.stringify(standardList));
-    document.getElementById("standardInput").value = "";
-    updateStandardList();
-}
-
-function deleteStandard() {
-    if (standardList.length === 0) return;
-    standardList.pop();
-    localStorage.setItem("standardList", JSON.stringify(standardList));
-    updateStandardList();
-}
-
+  // ---------- init ----------
+  loadStandards();
+  resetToIdle(true);
+})();
 </script>
 </body>
 </html>
