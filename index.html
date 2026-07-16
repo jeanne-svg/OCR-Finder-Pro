@@ -403,10 +403,6 @@
         video: { facingMode: { ideal: facing || currentFacing }, width:{ ideal:1920 }, height:{ ideal:1080 } },
         audio: false
       });
-
-video:{
-    facingMode:"environment"
-}
       
       video.srcObject = stream;
       await video.play();
