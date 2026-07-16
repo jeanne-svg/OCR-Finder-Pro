@@ -438,8 +438,9 @@ ctx.filter =
       logger: () => {}
     });
     await worker.setParameters({
-      tessedit_pageseg_mode: "6"
-    });
+    tessedit_pageseg_mode: "11",
+    preserve_interword_spaces: "1"
+});
     workerReady = true;
     setStatus("scanning", "掃描中", "自動掃描中...");
   }
