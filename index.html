@@ -7,17 +7,20 @@
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@4/dist/tesseract.min.js"></script>
   <style>
     :root {
-      --bg-color: #0f172a;
-      --panel-bg: #1e293b;
-      --border-color: #334155;
-      --text-main: #f8fafc;
-      --text-dim: #94a3b8;
+      /* 原生深黑底、藍綠色系版面配色 */
+      --bg-color: #030712;       /* 極致深黑底 */
+      --panel-bg: #111827;       /* 深灰黑面板 */
+      --border-color: #1f2937;   /* 暗色邊框 */
+      --text-main: #f3f4f6;      /* 純白偏亮文字 */
+      --text-dim: #9ca3af;       /* 暗灰文字 */
       
-      --brand-primary: #3b82f6;
-      --brand-hover: #2563eb;
-      --status-ok: #22c55e;
-      --status-warn: #eab308;
-      --status-bad: #ef4444;
+      --brand-primary: #10b981;  /* 主題螢光綠/綠色 (或科技藍，這裡採用藍綠高對比) */
+      --brand-blue: #3b82f6;     /* 科技藍 */
+      --brand-hover: #059669;    /* 綠色懸停 */
+      
+      --status-ok: #10b981;      /* 通過：綠色 */
+      --status-warn: #f59e0b;    /* 警告：橘黃 */
+      --status-bad: #ef4444;     /* 失敗：紅色 */
     }
 
     * {
@@ -41,11 +44,13 @@
     header h1 {
       font-size: 1.5rem;
       font-weight: 700;
-      color: var(--brand-primary);
+      color: var(--brand-blue); /* 科技藍主標題 */
+      text-shadow: 0 2px 10px rgba(59, 130, 246, 0.3);
     }
     header p {
       font-size: 0.875rem;
       color: var(--text-dim);
+      margin-top: 4px;
     }
 
     .main-grid {
@@ -68,6 +73,7 @@
       padding: 16px;
       display: flex;
       flex-direction: column;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5);
     }
 
     /* 相機畫面 */
@@ -75,10 +81,11 @@
       position: relative;
       width: 100%;
       aspect-ratio: 4 / 3;
-      background-color: #020617;
+      background-color: #000000;
       border-radius: 8px;
       overflow: hidden;
       margin-bottom: 12px;
+      border: 1px solid var(--border-color);
     }
 
     #video {
@@ -97,14 +104,14 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background-color: #020617;
+      background-color: #000000;
       color: var(--text-dim);
       z-index: 5;
     }
 
     .start-btn {
       margin-top: 12px;
-      background-color: var(--brand-primary);
+      background-color: var(--brand-blue);
       color: #fff;
       border: none;
       border-radius: 6px;
@@ -112,10 +119,11 @@
       font-size: 1rem;
       cursor: pointer;
       font-weight: 600;
-      transition: background-color 0.2s;
+      transition: background-color 0.2s, box-shadow 0.2s;
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
     }
     .start-btn:hover {
-      background-color: var(--brand-hover);
+      background-color: #2563eb;
     }
 
     /* 掃描框 */
@@ -126,42 +134,43 @@
       width: 80%;
       height: 40%;
       transform: translate(-50%, -50%);
-      border: 2px dashed rgba(255,255,255,0.4);
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.6);
+      border: 2px dashed rgba(59, 130, 246, 0.5); /* 預設藍色虛線 */
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.75);
       z-index: 10;
       pointer-events: none;
       border-radius: 4px;
       transition: border-color 0.3s, box-shadow 0.3s;
     }
     .scan-frame.scanning {
-      border-color: var(--brand-primary);
+      border-color: var(--brand-blue);
       border-style: solid;
     }
     .scan-frame.ok {
       border-color: var(--status-ok);
       border-style: solid;
-      box-shadow: 0 0 0 9999px rgba(34, 197, 94, 0.25);
+      box-shadow: 0 0 0 9999px rgba(16, 185, 129, 0.2);
     }
     .scan-frame.warn {
       border-color: var(--status-warn);
       border-style: solid;
-      box-shadow: 0 0 0 9999px rgba(234, 179, 8, 0.25);
+      box-shadow: 0 0 0 9999px rgba(245, 158, 11, 0.2);
     }
     .scan-frame.bad {
       border-color: var(--status-bad);
       border-style: solid;
-      box-shadow: 0 0 0 9999px rgba(239, 68, 68, 0.25);
+      box-shadow: 0 0 0 9999px rgba(239, 108, 108, 0.2);
     }
 
-    /* 掃描雷射紅線 */
+    /* 掃描雷射紅/綠線 */
     .scan-line {
       position: absolute;
       left: 0;
       width: 100%;
       height: 2px;
-      background-color: var(--brand-primary);
+      background-color: var(--brand-blue);
       display: none;
       z-index: 11;
+      box-shadow: 0 0 8px var(--brand-blue);
     }
     .scan-line.active {
       display: block;
@@ -170,1024 +179,4 @@
     @keyframes scan-anim {
       0% { top: 30%; }
       50% { top: 70%; }
-      100% { top: 30%; }
-    }
-
-    .cam-status {
-      position: absolute;
-      bottom: 8px;
-      left: 8px;
-      background-color: rgba(0,0,0,0.6);
-      padding: 4px 8px;
-      border-radius: 4px;
-      font-size: 0.75rem;
-      color: #fff;
-      z-index: 12;
-    }
-
-    /* 快捷功能鍵區 */
-    .action-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 8px;
-      margin-bottom: 16px;
-    }
-    .btn {
-      background-color: #334155;
-      color: #fff;
-      border: none;
-      padding: 8px;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-      font-weight: 500;
-      text-align: center;
-      transition: background-color 0.2s;
-    }
-    .btn:hover {
-      background-color: #475569;
-    }
-    .btn-red {
-      background-color: #991b1b;
-    }
-    .btn-red:hover {
-      background-color: #b91c1c;
-    }
-
-    /* 面板狀態列 */
-    .status-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--border-color);
-      padding-bottom: 12px;
-      margin-bottom: 12px;
-    }
-    .status-title {
-      font-size: 1.05rem;
-      font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background-color: var(--text-dim);
-    }
-    .dot.scanning { background-color: var(--brand-primary); }
-    .dot.ok { background-color: var(--status-ok); }
-    .dot.warn { background-color: var(--status-warn); }
-    .dot.bad { background-color: var(--status-bad); }
-
-    .badge {
-      font-size: 0.75rem;
-      padding: 2px 6px;
-      border-radius: 4px;
-      background-color: #334155;
-      font-weight: 500;
-    }
-    .badge.ok { background-color: #166534; color: #bbf7d0; }
-    .badge.warn { background-color: #854d0e; color: #fef08a; }
-    .badge.bad { background-color: #991b1b; color: #fecaca; }
-
-    /* 結果呈現 */
-    .result-box {
-      background-color: #0f172a;
-      border: 1px solid var(--border-color);
-      border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 16px;
-    }
-    .result-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 8px;
-    }
-    .result-head label {
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      font-weight: 600;
-    }
-    .result-body {
-      font-family: monospace;
-      font-size: 1.15rem;
-      white-space: pre-wrap;
-      word-break: break-all;
-      letter-spacing: 0.05em;
-    }
-    .result-body.empty {
-      color: var(--text-dim);
-      font-style: italic;
-      font-size: 0.95rem;
-    }
-
-    .match-name {
-      font-size: 0.85rem;
-      color: var(--text-dim);
-      margin-bottom: 6px;
-    }
-
-    /* 比對清單 */
-    .cmp-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .cmp-line {
-      display: flex;
-      align-items: flex-start;
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.95rem;
-      gap: 8px;
-    }
-    .cmp-line.match {
-      background-color: rgba(34, 197, 94, 0.1);
-      border: 1px solid rgba(34, 197, 94, 0.2);
-    }
-    .cmp-line.mismatch {
-      background-color: rgba(239, 68, 68, 0.1);
-      border: 1px solid rgba(239, 68, 68, 0.2);
-    }
-    .cmp-icon {
-      width: 16px;
-      height: 16px;
-      margin-top: 3px;
-      flex-shrink: 0;
-    }
-    .cmp-text {
-      flex-grow: 1;
-      font-family: monospace;
-    }
-    .cmp-text .std {
-      font-weight: 600;
-    }
-    .cmp-text .got {
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      margin-top: 2px;
-    }
-
-    /* 設定摺疊區 */
-    details {
-      background-color: var(--panel-bg);
-      border: 1px solid var(--border-color);
-      border-radius: 12px;
-      padding: 12px;
-      margin-top: 16px;
-      max-width: 1200px;
-      margin: 16px auto 0 auto;
-    }
-    summary {
-      font-weight: 600;
-      cursor: pointer;
-      padding: 4px;
-      outline: none;
-      color: var(--brand-primary);
-    }
-    .settings-grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 16px;
-      margin-top: 12px;
-    }
-    @media (min-width: 768px) {
-      .settings-grid {
-        grid-template-columns: 1fr 1fr;
-      }
-    }
-
-    .form-group {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-    .form-group label {
-      font-size: 0.85rem;
-      color: var(--text-dim);
-      font-weight: 600;
-    }
-    .input-text, .textarea-text {
-      background-color: #0f172a;
-      border: 1px solid var(--border-color);
-      color: var(--text-main);
-      padding: 8px 12px;
-      border-radius: 6px;
-      font-size: 0.9rem;
-      outline: none;
-    }
-    .input-text:focus, .textarea-text:focus {
-      border-color: var(--brand-primary);
-    }
-    .textarea-text {
-      resize: vertical;
-      min-height: 80px;
-      font-family: monospace;
-    }
-
-    .std-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      max-height: 240px;
-      overflow-y: auto;
-      border: 1px solid var(--border-color);
-      padding: 8px;
-      border-radius: 6px;
-      background-color: #0f172a;
-    }
-    .std-item {
-      padding: 8px;
-      background-color: var(--panel-bg);
-      border-radius: 4px;
-      border: 1px solid var(--border-color);
-    }
-    .std-item-head {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 4px;
-    }
-    .std-item-head b {
-      font-size: 0.85rem;
-    }
-    .std-item pre {
-      font-family: monospace;
-      font-size: 0.8rem;
-      color: var(--text-dim);
-      white-space: pre-wrap;
-    }
-    
-    .item-actions {
-      display: flex;
-      gap: 12px;
-    }
-    .action-btn {
-      background: none;
-      border: none;
-      cursor: pointer;
-      font-size: 0.75rem;
-      font-weight: 500;
-    }
-    .edit-btn {
-      color: var(--brand-primary);
-    }
-    .edit-btn:hover {
-      text-decoration: underline;
-    }
-    .del-btn {
-      color: var(--status-bad);
-    }
-    .del-btn:hover {
-      text-decoration: underline;
-    }
-
-    /* 全局輕提示 */
-    .toast {
-      position: fixed;
-      bottom: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background-color: #1e293b;
-      border: 1px solid #3b82f6;
-      color: #fff;
-      padding: 10px 20px;
-      border-radius: 30px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      z-index: 999;
-      opacity: 0;
-      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.3s;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.5);
-    }
-    .toast.show {
-      transform: translateX(-50%) translateY(0);
-      opacity: 1;
-    }
-
-    .placeholder-dim {
-      color: var(--text-dim);
-      font-size: 0.85rem;
-      text-align: center;
-      padding: 20px 0;
-    }
-
-    canvas {
-      display: none;
-    }
-  </style>
-</head>
-<body>
-
-  <header>
-    <h1>IC 規格比對自動掃描系統</h1>
-    <p>透過二值化灰階演算法與 AI 比對自動判定晶片刻字規格</p>
-  </header>
-
-  <div class="main-grid">
-    
-    <div class="panel">
-      <div class="cam-wrap" id="camWrap">
-        <div class="cam-placeholder" id="camPlaceholder">
-          <p style="margin-bottom:12px;">尚未連接或啟動相機</p>
-          <button class="start-btn" id="startBtn">啟動相機</button>
-        </div>
-        
-        <video id="video" autoplay playsinline></video>
-        
-        <div class="scan-frame" id="scanFrame">
-          <div class="scan-line" id="scanLine"></div>
-        </div>
-
-        <div class="cam-status" id="camStatusText">相機狀態：閒置</div>
-      </div>
-
-      <div class="action-row">
-        <button class="btn" id="zoomInBtn">🔍 變焦放大</button>
-        <button class="btn" id="zoomOutBtn">🔍 變焦縮小</button>
-        <button class="btn" id="shotBtn">📸 畫面截圖</button>
-        <button class="btn btn-red" id="resetBtn">🔄 重新鎖定</button>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="status-bar">
-        <div class="status-title">
-          <span class="dot" id="statusDot"></span>
-          <span id="statusLabel">相機未啟動</span>
-        </div>
-        <button class="btn" id="settingsToggle" style="padding:4px 8px; font-size:0.75rem;">設定標準庫</button>
-      </div>
-
-      <div class="result-box">
-        <div class="result-head">
-          <label>偵測辨識結果</label>
-          <span class="badge" id="ocrBadge">等待中</span>
-        </div>
-        <div class="result-body empty" id="ocrText">尚無辨識結果</div>
-        <button class="btn" id="copyBtn" style="margin-top:10px; width:100%; font-size:0.8rem; padding:6px;">📋 複製辨識結果</button>
-      </div>
-
-      <div class="result-box" style="margin-bottom:0; flex-grow:1;">
-        <div class="result-head">
-          <label>規格對比清單</label>
-          <span class="badge" id="cmpBadge">—</span>
-        </div>
-        <div class="match-name" id="matchName" style="display:none;">比對對象：—</div>
-        <div class="cmp-list" id="cmpList">
-          <div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-
-  <details id="settingsDetails">
-    <summary>📦 IC 比對標準庫管理（自動過濾亂碼）</summary>
-    <div class="settings-grid">
-      
-      <div class="form-group">
-        <label id="formTitle">新增一組 IC 型號 / 標準值</label>
-        <input type="text" class="input-text" id="stdNameInput" placeholder="例如：ATMEGA328P">
-        <textarea class="textarea-text" id="stdTextInput" placeholder="請輸入欲比對的標準字，支援多行&#10;例如：&#10;MEGA328P&#10;U-TH&#10;2230A8"></textarea>
-        <div style="display:flex; gap:8px;">
-          <button class="btn" id="addStdBtn" style="background-color:var(--brand-primary); flex-grow:1;">儲存至標準庫</button>
-          <button class="btn" id="cancelEditBtn" style="background-color:#475569; display:none;">取消編輯</button>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label>現有標準規格庫</label>
-        <div class="std-list" id="stdList"></div>
-      </div>
-
-    </div>
-  </details>
-
-  <div class="toast" id="toast"></div>
-
-  <canvas id="captureCanvas"></canvas>
-  <canvas id="shotCanvas"></canvas>
-
-  <script>
-    (function(){
-      "use strict";
-
-      // ---------- state ----------
-      const STORAGE_KEY = "ic_ocr_standards_v1";
-      let standards = [];
-      let stream = null;
-      let videoTrack = null;
-      let hasHardwareZoom = false;
-      let zoomLevel = 1.0; // 範圍 1.0 至 4.0
-      const ZOOM_MIN = 1.0;
-      const ZOOM_MAX = 4.0;
-      const ZOOM_STEP = 0.5;
-
-      let worker = null;
-      let workerReady = false;
-      let ocrTimer = null;
-      let isRecognizing = false;
-      let state = "idle"; // idle | locked
-      let emptyStreak = 0;
-      const EMPTY_STREAK_TO_RESET = 3;
-      const MIN_TEXT_LEN = 3;
-
-      const OCR_INTERVAL_IDLE = 300;
-      const OCR_INTERVAL_LOCKED = 300;
-
-      // 編輯狀態變數
-      let editIndex = -1; 
-
-      // ---------- elements ----------
-      const video = document.getElementById("video");
-      const camPlaceholder = document.getElementById("camPlaceholder");
-      const startBtn = document.getElementById("startBtn");
-      const camWrap = document.getElementById("camWrap");
-      const scanFrame = document.getElementById("scanFrame");
-      const scanLine = document.getElementById("scanLine");
-      const camStatusText = document.getElementById("camStatusText");
-      const statusDot = document.getElementById("statusDot");
-      const statusLabel = document.getElementById("statusLabel");
-      const ocrText = document.getElementById("ocrText");
-      const ocrBadge = document.getElementById("ocrBadge");
-      const cmpBadge = document.getElementById("cmpBadge");
-      const cmpList = document.getElementById("cmpList");
-      const matchName = document.getElementById("matchName");
-      const copyBtn = document.getElementById("copyBtn");
-      const resetBtn = document.getElementById("resetBtn");
-      const shotBtn = document.getElementById("shotBtn");
-      const zoomInBtn = document.getElementById("zoomInBtn");
-      const zoomOutBtn = document.getElementById("zoomOutBtn");
-      const settingsToggle = document.getElementById("settingsToggle");
-      const settingsDetails = document.getElementById("settingsDetails");
-      
-      const formTitle = document.getElementById("formTitle");
-      const stdNameInput = document.getElementById("stdNameInput");
-      const stdTextInput = document.getElementById("stdTextInput");
-      const addStdBtn = document.getElementById("addStdBtn");
-      const cancelEditBtn = document.getElementById("cancelEditBtn");
-      
-      const stdList = document.getElementById("stdList");
-      const toast = document.getElementById("toast");
-      const captureCanvas = document.getElementById("captureCanvas");
-      const shotCanvas = document.getElementById("shotCanvas");
-
-      // ---------- storage ----------
-      function loadStandards(){
-        try{
-          const raw = localStorage.getItem(STORAGE_KEY);
-          standards = raw ? JSON.parse(raw) : [];
-        }catch(e){ standards = []; }
-        renderStdList();
-      }
-      function saveStandards(){
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(standards));
-      }
-      
-      function renderStdList(){
-        if(standards.length === 0){
-          stdList.innerHTML = '<div class="placeholder-dim">尚未新增任何標準文字。</div>';
-          return;
-        }
-        stdList.innerHTML = "";
-        standards.forEach((s, idx) => {
-          const div = document.createElement("div");
-          div.className = "std-item";
-          
-          const head = document.createElement("div");
-          head.className = "std-item-head";
-          
-          const b = document.createElement("b");
-          b.textContent = s.name || ("未命名 " + (idx+1));
-          
-          // 按鈕容器
-          const actionsWrap = document.createElement("div");
-          actionsWrap.className = "item-actions";
-
-          // 編輯按鈕
-          const editBtn = document.createElement("button");
-          editBtn.className = "action-btn edit-btn";
-          editBtn.textContent = "修改";
-          editBtn.onclick = () => {
-            startEdit(idx);
-          };
-
-          // 刪除按鈕
-          const del = document.createElement("button");
-          del.className = "action-btn del-btn";
-          del.textContent = "刪除";
-          del.onclick = () => {
-            if(editIndex === idx) {
-              cancelEdit();
-            }
-            standards.splice(idx, 1);
-            saveStandards();
-            renderStdList();
-            showToast("已刪除該標準項目");
-          };
-
-          actionsWrap.appendChild(editBtn);
-          actionsWrap.appendChild(del);
-          
-          head.appendChild(b);
-          head.appendChild(actionsWrap);
-          
-          const pre = document.createElement("pre");
-          pre.textContent = s.text;
-          
-          div.appendChild(head);
-          div.appendChild(pre);
-          stdList.appendChild(div);
-        });
-      }
-
-      // 進入編輯狀態
-      function startEdit(idx) {
-        editIndex = idx;
-        const item = standards[idx];
-        stdNameInput.value = item.name;
-        stdTextInput.value = item.text;
-        
-        formTitle.textContent = "修改 IC 型號 / 標準值";
-        formTitle.style.color = "var(--brand-primary)";
-        addStdBtn.textContent = "更新標準庫";
-        cancelEditBtn.style.display = "inline-block";
-        
-        stdNameInput.focus();
-        showToast("已載入修改資料");
-      }
-
-      // 取消編輯狀態
-      function cancelEdit() {
-        editIndex = -1;
-        stdNameInput.value = "";
-        stdTextInput.value = "";
-        formTitle.textContent = "新增一組 IC 型號 / 標準值";
-        formTitle.style.color = "var(--text-dim)";
-        addStdBtn.textContent = "儲存至標準庫";
-        cancelEditBtn.style.display = "none";
-      }
-
-      cancelEditBtn.addEventListener("click", cancelEdit);
-
-      // 新增與修改的確認邏輯
-      addStdBtn.addEventListener("click", () => {
-        const name = stdNameInput.value.trim();
-        const text = stdTextInput.value.replace(/\r\n/g, "\n").trim();
-        if(!text){ showToast("請輸入標準文字內容"); return; }
-        
-        const finalName = name || ("標準文字 " + (editIndex >= 0 ? editIndex + 1 : standards.length + 1));
-
-        if(editIndex >= 0) {
-          // 修改現有資料
-          standards[editIndex] = { name: finalName, text };
-          showToast("已更新標準文字項目");
-          cancelEdit();
-        } else {
-          // 新增全新資料
-          standards.push({ name: finalName, text });
-          showToast("已新增標準文字");
-          stdNameInput.value = "";
-          stdTextInput.value = "";
-        }
-        
-        saveStandards();
-        renderStdList();
-      });
-
-      settingsToggle.addEventListener("click", () => {
-        settingsDetails.open = !settingsDetails.open;
-        settingsDetails.scrollIntoView({ behavior:"smooth", block:"start" });
-      });
-
-      // ---------- toast ----------
-      let toastTimer = null;
-      function showToast(msg){
-        toast.textContent = msg;
-        toast.classList.add("show");
-        clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
-      }
-
-      // ---------- status ----------
-      function setStatus(kind, label, camText){
-        statusDot.className = "dot" + (kind ? " " + kind : "");
-        statusLabel.textContent = label;
-        if(camText) camStatusText.textContent = camText;
-      }
-      function setFrame(kind){
-        scanFrame.className = "scan-frame" + (kind ? " " + kind : "");
-      }
-
-      // ---------- camera ----------
-      async function startCamera(){
-        try{
-          if(stream){ stream.getTracks().forEach(t => t.stop()); }
-          setStatus(null, "相機啟動中", "啟動相機中...");
-          stream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment", width:{ ideal:1920 }, height:{ ideal:1080 } },
-            audio: false
-          });
-          video.srcObject = stream;
-          await video.play();
-
-          // 檢查硬體變焦支援度
-          const tracks = stream.getVideoTracks();
-          if(tracks.length > 0){
-            videoTrack = tracks[0];
-            const capabilities = videoTrack.getCapabilities ? videoTrack.getCapabilities() : {};
-            hasHardwareZoom = !!capabilities.zoom;
-          }
-
-          zoomLevel = 1.0;
-          applyZoom();
-
-          camPlaceholder.style.display = "none";
-          setStatus("scanning", "掃描中", "自動掃描中...");
-          setFrame("scanning");
-          scanLine.classList.add("active");
-          await ensureWorker();
-          resetToIdle(true);
-          scheduleOcr(200);
-        }catch(err){
-          console.error(err);
-          setStatus("bad", "相機錯誤", "無法啟動相機：" + err.message);
-          showToast("相機啟動失敗，請確認權限");
-        }
-      }
-
-      startBtn.addEventListener("click", startCamera);
-
-      // ---------- zoom logic ----------
-      function applyZoom(){
-        if(!stream) return;
-        
-        if(hasHardwareZoom && videoTrack){
-          // 硬體變焦處理
-          video.style.transform = "scale(1)"; // 重置 CSS 數位縮放
-          const capabilities = videoTrack.getCapabilities();
-          const min = capabilities.zoom.min || 1;
-          const max = capabilities.zoom.max || 3;
-          const mappedZoom = min + ((zoomLevel - ZOOM_MIN) / (ZOOM_MAX - ZOOM_MIN)) * (max - min);
-          videoTrack.applyConstraints({
-            advanced: [{ zoom: mappedZoom }]
-          }).catch(err => {
-            console.warn("硬體變焦失敗，切換為數位變焦備援", err);
-            video.style.transform = `scale(${zoomLevel})`;
-          });
-        } else {
-          // 數位變焦（CSS 備援）
-          video.style.transform = `scale(${zoomLevel})`;
-        }
-        
-        camStatusText.textContent = `倍率: ${zoomLevel.toFixed(1)}x` + (hasHardwareZoom ? "" : " (數位)");
-      }
-
-      zoomInBtn.addEventListener("click", () => {
-        if(!stream){ showToast("請先啟動相機"); return; }
-        if(zoomLevel < ZOOM_MAX){
-          zoomLevel = Math.min(ZOOM_MAX, zoomLevel + ZOOM_STEP);
-          applyZoom();
-        } else {
-          showToast("已達最大倍率");
-        }
-      });
-
-      zoomOutBtn.addEventListener("click", () => {
-        if(!stream){ showToast("請先啟動相機"); return; }
-        if(zoomLevel > ZOOM_MIN){
-          zoomLevel = Math.max(ZOOM_MIN, zoomLevel - ZOOM_STEP);
-          applyZoom();
-        } else {
-          showToast("已達最小倍率");
-        }
-      });
-
-      // ---------- tesseract worker ----------
-      async function ensureWorker(){
-        if(workerReady) return;
-        setStatus(null, "載入辨識引擎", "載入 OCR 引擎中...");
-        worker = await Tesseract.createWorker("eng", 1, {
-          logger: () => {}
-        });
-        
-        await worker.setParameters({
-          tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-_/.",
-          tessedit_pageseg_mode: "6"
-        });
-        workerReady = true;
-        setStatus("scanning", "掃描中", "自動掃描中...");
-      }
-
-      // ---------- crop mapping (object-fit: cover) ----------
-      function getCropRect(){
-        const vw = video.videoWidth, vh = video.videoHeight;
-        if(!vw || !vh) return null;
-        const cw = camWrap.clientWidth, ch = camWrap.clientHeight;
-        const videoAspect = vw / vh;
-        const containerAspect = cw / ch;
-        let renderW, renderH, offsetX, offsetY;
-        if(videoAspect > containerAspect){
-          renderH = ch;
-          renderW = ch * videoAspect;
-          offsetX = (renderW - cw) / 2;
-          offsetY = 0;
-        }else{
-          renderW = cw;
-          renderH = cw / videoAspect;
-          offsetX = 0;
-          offsetY = (renderH - ch) / 2;
-        }
-        const scale = vw / renderW;
-        const boxRect = scanFrame.getBoundingClientRect();
-        const wrapRect = camWrap.getBoundingClientRect();
-        const boxX = boxRect.left - wrapRect.left;
-        const boxY = boxRect.top - wrapRect.top;
-        const boxW = boxRect.width;
-        const boxH = boxRect.height;
-        
-        let sx = (boxX + offsetX) * scale;
-        let sy = (boxY + offsetY) * scale;
-        let sw = boxW * scale;
-        let sh = boxH * scale;
-
-        if(!hasHardwareZoom && zoomLevel > 1.0){
-          const dW = sw / zoomLevel;
-          const dH = sh / zoomLevel;
-          sx = sx + (sw - dW) / 2;
-          sy = sy + (sh - dH) / 2;
-          sw = dW;
-          sh = dH;
-        }
-
-        return { sx, sy, sw, sh };
-      }
-
-      function captureCroppedCanvas(){
-        const rect = getCropRect();
-        if(!rect) return null;
-        const upscale = 2; 
-        captureCanvas.width = Math.max(1, Math.round(rect.sw * upscale));
-        captureCanvas.height = Math.max(1, Math.round(rect.sh * upscale));
-        const ctx = captureCanvas.getContext("2d");
-        
-        ctx.filter = "grayscale(1) contrast(2) brightness(1.1)"; 
-        ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
-        
-        try {
-          const imgData = ctx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
-          const data = imgData.data;
-          
-          let sum = 0;
-          const len = data.length;
-          for (let i = 0; i < len; i += 4) {
-            sum += (data[i] + data[i+1] + data[i+2]) / 3;
-          }
-          const avgThreshold = sum / (len / 4);
-          const threshold = Math.max(100, Math.min(avgThreshold, 150)); 
-
-          for (let i = 0; i < len; i += 4) {
-            const r = data[i], g = data[i+1], b = data[i+2];
-            const brightness = r * 0.299 + g * 0.587 + b * 0.114;
-            const v = (brightness > threshold) ? 255 : 0; 
-            data[i] = v;
-            data[i+1] = v;
-            data[i+2] = v;
-          }
-          ctx.putImageData(imgData, 0, 0);
-        } catch(e) {
-          console.warn("自定義二值化處理失敗，使用預設 CSS 濾鏡備援", e);
-        }
-
-        return captureCanvas;
-      }
-
-      // ---------- OCR loop ----------
-      function scheduleOcr(delay){
-        clearTimeout(ocrTimer);
-        ocrTimer = setTimeout(runOcr, delay != null ? delay : (state === "idle" ? OCR_INTERVAL_IDLE : OCR_INTERVAL_LOCKED));
-      }
-
-      async function runOcr(){
-        if(!stream || !workerReady || isRecognizing){ scheduleOcr(); return; }
-        const canvas = captureCroppedCanvas();
-        if(!canvas){ scheduleOcr(); return; }
-        isRecognizing = true;
-        if(state === "idle"){ setStatus("scanning", "辨識中", "辨識中，請保持穩定..."); }
-        try{
-          const { data } = await worker.recognize(canvas);
-          const rawText = (data && data.text ? data.text : "").trim();
-          handleOcrResult(rawText);
-        }catch(err){
-          console.error(err);
-        }finally{
-          isRecognizing = false;
-          scheduleOcr();
-        }
-      }
-
-      function cleanText(t){
-        return t.split("\n").map(l => l.trim()).filter(l => l.length > 0).join("\n");
-      }
-
-      function handleOcrResult(rawText){
-        const cleaned = cleanText(rawText);
-        const meaningfulLen = cleaned.replace(/\s/g, "").length;
-
-        if(state === "idle"){
-          if(meaningfulLen >= MIN_TEXT_LEN){
-            lockResult(cleaned);
-          }else{
-            setStatus("scanning", "掃描中", `自動掃描中... (倍率: ${zoomLevel.toFixed(1)}x)`);
-          }
-        }else if(state === "locked"){
-          if(meaningfulLen < MIN_TEXT_LEN){
-            emptyStreak++;
-            if(emptyStreak >= EMPTY_STREAK_TO_RESET){
-              resetToIdle();
-            }
-          }else{
-            emptyStreak = 0;
-          }
-        }
-      }
-
-      function lockResult(text){
-        state = "locked";
-        emptyStreak = 0;
-        scanLine.classList.remove("active");
-        ocrText.textContent = text;
-        ocrText.classList.remove("empty");
-        ocrBadge.textContent = "已鎖定";
-        ocrBadge.className = "badge ok";
-
-        const cmp = compareAgainstStandards(text);
-        renderComparison(cmp);
-
-        if(cmp.kind === "green"){
-          setFrame("ok"); setStatus("ok", "完全符合", "比對成功：完全符合，移開 IC 以重新掃描");
-        }else if(cmp.kind === "yellow"){
-          setFrame("warn"); setStatus("warn", "部分符合", "部分符合，移開 IC 以重新掃描");
-        }else{
-          setFrame("bad"); setStatus("bad", "完全不符", "未通過比對，移開 IC 以重新掃描");
-        }
-      }
-
-      function resetToIdle(silent){
-        state = "idle";
-        emptyStreak = 0;
-        scanLine.classList.add("active");
-        setFrame("scanning");
-        ocrText.textContent = "尚無辨識結果";
-        ocrText.classList.add("empty");
-        ocrBadge.textContent = "等待中";
-        ocrBadge.className = "badge";
-        cmpBadge.textContent = "—";
-        cmpBadge.className = "badge";
-        matchName.style.display = "none";
-        cmpList.innerHTML = '<div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div>';
-        if(!silent) setStatus("scanning", "掃描中", "已重置，自動掃描中...");
-      }
-
-      resetBtn.addEventListener("click", () => resetToIdle());
-
-      // ---------- comparison logic ----------
-      function normLine(l){
-        return l.toUpperCase().replace(/[^A-Z0-9]/g, "");
-      }
-
-      function compareAgainstStandards(ocrTextRaw){
-        if(standards.length === 0){
-          return { kind: "gray", stdName: null, lines: [], noStandards: true };
-        }
-        const ocrLines = ocrTextRaw.split("\n").filter(l => l.trim().length > 0);
-        const normOcrLines = ocrLines.map(normLine);
-
-        let best = null;
-        standards.forEach(s => {
-          const stdLines = s.text.split("\n").map(l => l.trim()).filter(l => l.length > 0);
-          if(stdLines.length === 0) return;
-          const lineResults = stdLines.map(stdLine => {
-            const nStd = normLine(stdLine);
-            let matchedOcrLine = null;
-            for(let i = 0; i < normOcrLines.length; i++){
-              const nOcr = normOcrLines[i];
-              if(!nOcr) continue;
-              if(nOcr === nStd || (nStd.length >= 3 && (nOcr.includes(nStd) || nStd.includes(nOcr)))){
-                matchedOcrLine = ocrLines[i];
-                break;
-              }
-            }
-            return { std: stdLine, matched: matchedOcrLine !== null, got: matchedOcrLine };
-          });
-          const matchCount = lineResults.filter(r => r.matched).length;
-          const ratio = matchCount / stdLines.length;
-          if(!best || ratio > best.ratio){
-            best = { ratio, stdName: s.name, lines: lineResults };
-          }
-        });
-
-        if(!best){
-          return { kind: "gray", stdName: null, lines: [], noStandards: true };
-        }
-        let kind = "red";
-        if(best.ratio >= 0.999) kind = "green";
-        else if(best.ratio > 0) kind = "yellow";
-        return { kind, stdName: best.stdName, lines: best.lines, ratio: best.ratio };
-      }
-
-      function renderComparison(cmp){
-        if(cmp.noStandards){
-          matchName.style.display = "none";
-          cmpBadge.textContent = "無標準文字";
-          cmpBadge.className = "badge";
-          cmpList.innerHTML = '<div class="placeholder-dim">請先在下方新增標準文字以進行比對。</div>';
-          return;
-        }
-        matchName.style.display = "block";
-        matchName.textContent = "比對對象：" + cmp.stdName;
-
-        if(cmp.kind === "green"){
-          cmpBadge.textContent = "完全符合"; cmpBadge.className = "badge ok";
-        }else if(cmp.kind === "yellow"){
-          cmpBadge.textContent = "部分符合"; cmpBadge.className = "badge warn";
-        }else{
-          cmpBadge.textContent = "完全不符"; cmpBadge.className = "badge bad";
-        }
-
-        cmpList.innerHTML = "";
-        cmp.lines.forEach(r => {
-          const row = document.createElement("div");
-          row.className = "cmp-line " + (r.matched ? "match" : "mismatch");
-          const icon = document.createElement("div");
-          icon.className = "cmp-icon";
-          icon.innerHTML = r.matched
-            ? '<svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>'
-            : '<svg viewBox="0 0 24 24" fill="none" stroke="#ef4444" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
-          const textWrap = document.createElement("div");
-          textWrap.className = "cmp-text";
-          const stdDiv = document.createElement("div");
-          stdDiv.className = "std";
-          stdDiv.textContent = r.std;
-          textWrap.appendChild(stdDiv);
-          if(!r.matched){
-            const gotDiv = document.createElement("div");
-            gotDiv.className = "got";
-            gotDiv.textContent = "（未在辨識結果中找到對應行）";
-            textWrap.appendChild(gotDiv);
-          }
-          row.appendChild(icon);
-          row.appendChild(textWrap);
-          cmpList.appendChild(row);
-        });
-      }
-
-      // ---------- copy / screenshot ----------
-      copyBtn.addEventListener("click", async () => {
-        const text = ocrText.textContent;
-        if(!text || ocrText.classList.contains("empty")){ showToast("尚無文字可複製"); return; }
-        try{
-          await navigator.clipboard.writeText(text);
-          showToast("已複製到剪貼簿");
-        }catch(e){
-          const ta = document.createElement("textarea");
-          ta.value = text;
-          document.body.appendChild(ta);
-          ta.select();
-          document.execCommand("copy");
-          document.body.removeChild(ta);
-          showToast("已複製到剪貼簿");
-        }
-      });
-
-      shotBtn.addEventListener("click", () => {
-        if(!stream){ showToast("請先啟動相機"); return; }
-        shotCanvas.width = video.videoWidth;
-        shotCanvas.height = video.videoHeight;
-        const ctx = shotCanvas.getContext("2d");
-        ctx.drawImage(video, 0, 0, shotCanvas.width, shotCanvas.height);
-        shotCanvas.toBlob(blob => {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          const ts = new Date().toISOString().replace(/[:.]/g, "-");
-          a.href = url;
-          a.download = "ic-scan-" + ts + ".png";
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          setTimeout(() => URL.revokeObjectURL(url), 2000);
-          showToast("截圖已儲存");
-        }, "image/png");
-      });
-
-      // ---------- init ----------
-      loadStandards();
-      resetToIdle(true);
-    })();
-  </script>
-</body>
-</html>
+      100%
