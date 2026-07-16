@@ -214,7 +214,11 @@
   <div class="scan-frame" id="scanFrame"></div>
   <div class="scanline" id="scanLine"></div>
   <div class="cam-tools">
+    
+<button id="zoomInBtn">＋</button>
 
+<button id="zoomOutBtn">－</button>
+    
       <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
     </button>
 
@@ -305,7 +309,7 @@
   const copyBtn = document.getElementById("copyBtn");
   const resetBtn = document.getElementById("resetBtn");
   const shotBtn = document.getElementById("shotBtn");
-  const switchCamBtn = document.getElementById("switchCamBtn");
+  const switchCamBtn = document.getElementById("switchCamBtn"); 
   const settingsToggle = document.getElementById("settingsToggle");
   const settingsDetails = document.getElementById("settingsDetails");
   const stdNameInput = document.getElementById("stdNameInput");
@@ -706,6 +710,37 @@
     }, "image/png");
   });
 
+  const zoomInBtn = document.getElementById("zoomInBtn");
+const zoomOutBtn = document.getElementById("zoomOutBtn");
+
+zoomInBtn.addEventListener("click", async () => {
+
+    if (!stream) return;
+
+    zoom = Math.min(5, zoom + 0.5);
+
+    const track = stream.getVideoTracks()[0];
+
+    await track.applyConstraints({
+        advanced: [{ zoom }]
+    });
+
+});
+
+zoomOutBtn.addEventListener("click", async () => {
+
+    if (!stream) return;
+
+    zoom = Math.max(1, zoom - 0.5);
+
+    const track = stream.getVideoTracks()[0];
+
+    await track.applyConstraints({
+        advanced: [{ zoom }]
+    });
+
+});
+  
   // ---------- init ----------
   loadStandards();
   resetToIdle(true);
