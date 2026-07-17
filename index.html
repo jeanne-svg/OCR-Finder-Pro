@@ -9,36 +9,19 @@
 <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.0/dist/tesseract.min.js"></script>
 <style>
   :root{
-    --bg: #0a0c0f;
-    --panel: #12161b;
-    --panel-2: #171c22;
-    --line: #232a32;
-    --text: #e6ebf0;
-    --text-dim: #7c8896;
-    --accent: #29d3c8;
-    --accent-dim: #1a7f79;
-    --ok: #22c55e;
-    --ok-dim: #123d22;
-    --warn: #eab308;
-    --warn-dim: #453a0a;
-    --bad: #ef4444;
-    --bad-dim: #3d1414;
-    --idle: #5b6773;
-    --mono: 'IBM Plex Mono', ui-monospace, monospace;
-    --sans: 'Inter', system-ui, sans-serif;
+    --bg: #0a0c0f; --panel: #12161b; --panel-2: #171c22; --line: #232a32;
+    --text: #e6ebf0; --text-dim: #7c8896; --accent: #29d3c8; --accent-dim: #1a7f79;
+    --ok: #22c55e; --ok-dim: #123d22; --warn: #eab308; --warn-dim: #453a0a;
+    --bad: #ef4444; --bad-dim: #3d1414; --idle: #5b6773;
+    --mono: 'IBM Plex Mono', ui-monospace, monospace; --sans: 'Inter', system-ui, sans-serif;
   }
   *{box-sizing:border-box;}
-  html,body{
-    margin:0; padding:0; background:var(--bg); color:var(--text);
-    font-family:var(--sans); -webkit-tap-highlight-color:transparent;
-    overscroll-behavior:none;
-  }
+  html,body{ margin:0; padding:0; background:var(--bg); color:var(--text); font-family:var(--sans);
+    -webkit-tap-highlight-color:transparent; overscroll-behavior:none; }
   body{ min-height:100vh; display:flex; flex-direction:column; }
 
-  header{
-    padding:14px 16px 10px; display:flex; align-items:center; justify-content:space-between;
-    border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:20;
-  }
+  header{ padding:14px 16px 10px; display:flex; align-items:center; justify-content:space-between;
+    border-bottom:1px solid var(--line); position:sticky; top:0; background:var(--bg); z-index:20; }
   .brand{ display:flex; align-items:center; gap:10px; }
   .brand .dot{ width:9px; height:9px; border-radius:50%; background:var(--idle); box-shadow:0 0 8px var(--idle); transition:.25s;}
   .brand .dot.scanning{ background:var(--accent); box-shadow:0 0 10px var(--accent); animation:pulse 1.2s infinite; }
@@ -48,105 +31,75 @@
   @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
   .brand h1{ font-size:15px; margin:0; font-weight:700; letter-spacing:.02em; }
   .brand small{ display:block; font-family:var(--mono); font-size:10.5px; color:var(--text-dim); letter-spacing:.04em; }
-  .iconbtn{
-    width:36px; height:36px; border-radius:10px; border:1px solid var(--line); background:var(--panel);
-    color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer;
-  }
+  .iconbtn{ width:36px; height:36px; border-radius:10px; border:1px solid var(--line); background:var(--panel);
+    color:var(--text-dim); display:flex; align-items:center; justify-content:center; cursor:pointer; }
   .iconbtn:active{ background:var(--panel-2); }
 
-  .cam-wrap{
-    position:relative; width:100%; height:45vh; min-height:260px; background:#000; overflow:hidden;
-    border-bottom:1px solid var(--line);
-  }
+  .cam-wrap{ position:relative; width:100%; height:45vh; min-height:260px; background:#000; overflow:hidden;
+    border-bottom:1px solid var(--line); }
   video{ width:100%; height:100%; object-fit:cover; display:block; transition: transform 0.1s ease-out; }
-  .cam-placeholder{
-    position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
-    gap:14px; background:radial-gradient(circle at 50% 40%, #141a20, #0a0c0f); z-index:5;
-  }
+  .cam-placeholder{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:14px; background:radial-gradient(circle at 50% 40%, #141a20, #0a0c0f); z-index:8; }
   .cam-placeholder svg{ opacity:.5; }
-  .startbtn{
-    background:var(--accent); color:#04211f; border:none; padding:11px 22px; border-radius:999px;
-    font-weight:700; font-size:14px; cursor:pointer; font-family:var(--sans);
-  }
-  .cam-placeholder p{ color:var(--text-dim); font-size:12.5px; margin:0; }
+  .startbtn{ background:var(--accent); color:#04211f; border:none; padding:11px 22px; border-radius:999px;
+    font-weight:700; font-size:14px; cursor:pointer; font-family:var(--sans); }
+  .cam-placeholder p{ color:var(--text-dim); font-size:12.5px; margin:0; text-align:center; padding:0 24px; }
 
-  #scanLayer{ position:absolute; left:8%; top:22%; width:84%; height:56%; }
-  .scan-frame{
-    position:absolute; border:3px solid var(--idle); border-radius:12px;
-    transition:border-color .2s, box-shadow .2s;
-    box-shadow:0 0 0 1200px rgba(0,0,0,.42);
-  }
-  .scan-frame.scanning{ border-color:var(--accent); box-shadow:0 0 0 1200px rgba(0,0,0,.32), 0 0 16px -2px var(--accent); }
-  .scan-frame.ok{ border-color:var(--ok); box-shadow:0 0 0 1200px rgba(0,0,0,.28), 0 0 20px -2px var(--ok); }
-  .scan-frame.warn{ border-color:var(--warn); box-shadow:0 0 0 1200px rgba(0,0,0,.28), 0 0 20px -2px var(--warn); }
-  .scan-frame.bad{ border-color:var(--bad); box-shadow:0 0 0 1200px rgba(0,0,0,.28), 0 0 20px -2px var(--bad); }
-  .slot-label{
-    position:absolute; top:-22px; left:0; font-family:var(--mono); font-size:10.5px; letter-spacing:.04em;
+  .zone-guide{ position:absolute; left:6%; top:14%; width:88%; height:68%;
+    border:2px dashed rgba(255,255,255,.22); border-radius:16px;
+    box-shadow:0 0 0 1200px rgba(0,0,0,.4); pointer-events:none; z-index:2; }
+  #scanLayer{ position:absolute; inset:0; z-index:3; }
+  .auto-frame{ position:absolute; border:3px solid var(--idle); border-radius:10px;
+    transition:border-color .2s, box-shadow .2s, left .15s, top .15s, width .15s, height .15s;
+    box-shadow:0 0 14px -3px rgba(0,0,0,.6); }
+  .auto-frame.scanning{ border-color:var(--accent); box-shadow:0 0 16px -3px var(--accent); }
+  .auto-frame.ok{ border-color:var(--ok); box-shadow:0 0 18px -3px var(--ok); }
+  .auto-frame.warn{ border-color:var(--warn); box-shadow:0 0 18px -3px var(--warn); }
+  .auto-frame.bad{ border-color:var(--bad); box-shadow:0 0 18px -3px var(--bad); }
+  .slot-label{ position:absolute; top:-22px; left:0; font-family:var(--mono); font-size:10.5px; letter-spacing:.04em;
     color:var(--text); background:rgba(10,12,15,.75); border:1px solid var(--line); padding:2px 8px; border-radius:999px;
-  }
+    white-space:nowrap; }
 
-  .cam-status{
-    position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:center; pointer-events:none; z-index:6;
-  }
-  .cam-status span{
-    font-family:var(--mono); font-size:11.5px; letter-spacing:.03em; color:var(--text);
-    background:rgba(10,12,15,.8); border:1px solid var(--line); padding:5px 12px; border-radius:999px;
-    text-align:center;
-  }
+  .cam-status{ position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:center; pointer-events:none; z-index:6; }
+  .cam-status span{ font-family:var(--mono); font-size:11.5px; letter-spacing:.03em; color:var(--text);
+    background:rgba(10,12,15,.8); border:1px solid var(--line); padding:5px 12px; border-radius:999px; text-align:center; }
 
-  .cam-tools{ position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:8px; z-index:6; }
-  .cam-tools button{
-    width:38px; height:38px; border-radius:10px; border:1px solid rgba(255,255,255,.15);
+  .cam-tools{ position:absolute; right:10px; top:10px; display:flex; flex-direction:column; gap:8px; z-index:9; }
+  .cam-tools button{ width:38px; height:38px; border-radius:10px; border:1px solid rgba(255,255,255,.15);
     background:rgba(10,12,15,.55); backdrop-filter:blur(4px); color:#fff; display:flex; align-items:center;
-    justify-content:center; cursor:pointer;
-  }
+    justify-content:center; cursor:pointer; }
   .cam-tools button:active{ background:rgba(10,12,15,.8); }
-  .zoom-indicator{
-    font-family:var(--mono); font-size:10px; color:var(--text); text-align:center;
-    background:rgba(10,12,15,.55); border-radius:6px; padding:2px 0;
-  }
+  .zoom-indicator{ font-family:var(--mono); font-size:10px; color:var(--text); text-align:center;
+    background:rgba(10,12,15,.55); border-radius:6px; padding:2px 0; }
 
-  /* ---- content ---- */
   main{ flex:1; padding:14px 14px 90px; display:flex; flex-direction:column; gap:14px; }
 
   .card{ background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:14px; }
-  .card h2{
-    margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim);
-    display:flex; align-items:center; justify-content:space-between; font-weight:700;
-  }
-  .badge{
-    font-family:var(--mono); font-size:10.5px; padding:2px 8px; border-radius:999px; border:1px solid var(--line);
-    color:var(--text-dim); text-transform:none; letter-spacing:0;
-  }
+  .card h2{ margin:0 0 10px; font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim);
+    display:flex; align-items:center; justify-content:space-between; font-weight:700; }
+  .badge{ font-family:var(--mono); font-size:10.5px; padding:2px 8px; border-radius:999px; border:1px solid var(--line);
+    color:var(--text-dim); text-transform:none; letter-spacing:0; }
   .badge.ok{ color:var(--ok); border-color:var(--ok-dim); background:var(--ok-dim); }
   .badge.warn{ color:var(--warn); border-color:var(--warn-dim); background:var(--warn-dim); }
   .badge.bad{ color:var(--bad); border-color:var(--bad-dim); background:var(--bad-dim); }
 
-  .ocr-text{
-    font-family:var(--mono); font-size:14px; line-height:1.65; white-space:pre-wrap; word-break:break-word;
-    color:var(--text); min-height:44px; padding:10px 12px; background:var(--panel-2); border-radius:10px;
-    border:1px solid var(--line);
-  }
+  .ocr-text{ font-family:var(--mono); font-size:14px; line-height:1.65; white-space:pre-wrap; word-break:break-word;
+    color:var(--text); min-height:44px; padding:10px 12px; background:var(--panel-2); border-radius:10px; border:1px solid var(--line); }
   .ocr-text.empty{ color:var(--text-dim); font-style:italic; }
   .row{ display:flex; gap:8px; margin-top:10px; }
   .row:first-child{ margin-top:0; }
-  .btn{
-    flex:1; border:1px solid var(--line); background:var(--panel-2); color:var(--text); border-radius:10px;
+  .btn{ flex:1; border:1px solid var(--line); background:var(--panel-2); color:var(--text); border-radius:10px;
     padding:10px; font-size:13px; font-weight:600; cursor:pointer; font-family:var(--sans);
-    display:flex; align-items:center; justify-content:center; gap:6px;
-  }
+    display:flex; align-items:center; justify-content:center; gap:6px; }
   .btn:active{ background:#1e252c; }
   .btn.primary{ background:var(--accent); color:#04211f; border-color:var(--accent); }
   .btn.ghost{ background:transparent; }
-  .btn.active{ background:var(--accent-dim); border-color:var(--accent); color:var(--accent); }
   .btn svg{ width:15px; height:15px; }
 
   .match-name{ font-family:var(--mono); font-size:12.5px; color:var(--accent); margin:10px 0 6px; }
 
-  .cmp-line{
-    display:flex; align-items:flex-start; gap:9px; padding:7px 0; border-bottom:1px dashed var(--line);
-    font-family:var(--mono); font-size:13px;
-  }
+  .cmp-line{ display:flex; align-items:flex-start; gap:9px; padding:7px 0; border-bottom:1px dashed var(--line);
+    font-family:var(--mono); font-size:13px; }
   .cmp-line:last-child{ border-bottom:none; }
   .cmp-icon{ flex:0 0 auto; width:18px; height:18px; margin-top:1px; }
   .cmp-text{ flex:1; word-break:break-word; }
@@ -156,17 +109,11 @@
   .cmp-line.mismatch .std{ color:var(--bad); }
   .placeholder-dim{ color:var(--text-dim); font-size:13px; font-family:var(--sans); }
 
-  textarea{
-    width:100%; min-height:96px; background:var(--panel-2); color:var(--text); border:1px solid var(--line);
-    border-radius:10px; padding:10px 12px; font-family:var(--mono); font-size:13px; resize:vertical;
-  }
-  input[type=text]{
-    width:100%; background:var(--panel-2); color:var(--text); border:1px solid var(--line);
-    border-radius:10px; padding:10px 12px; font-family:var(--sans); font-size:13px; margin-bottom:8px;
-  }
-  .std-item{
-    background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px;
-  }
+  textarea{ width:100%; min-height:96px; background:var(--panel-2); color:var(--text); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; font-family:var(--mono); font-size:13px; resize:vertical; }
+  input[type=text]{ width:100%; background:var(--panel-2); color:var(--text); border:1px solid var(--line);
+    border-radius:10px; padding:10px 12px; font-family:var(--sans); font-size:13px; margin-bottom:8px; }
+  .std-item{ background:var(--panel-2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; margin-bottom:8px; }
   .std-item-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
   .std-item-head b{ font-size:13px; }
   .std-item-actions{ display:flex; gap:8px; }
@@ -174,21 +121,16 @@
   .del-btn{ background:none; border:none; color:var(--bad); cursor:pointer; font-size:11.5px; font-family:var(--sans); padding:2px 4px; }
   .edit-btn{ background:none; border:none; color:var(--accent); cursor:pointer; font-size:11.5px; font-family:var(--sans); padding:2px 4px; }
 
-  .toast{
-    position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px); opacity:0;
+  .toast{ position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px); opacity:0;
     background:var(--panel-2); border:1px solid var(--line); color:var(--text); padding:10px 18px; border-radius:999px;
-    font-size:13px; z-index:100; transition:.25s; pointer-events:none; font-family:var(--sans);
-  }
+    font-size:13px; z-index:100; transition:.25s; pointer-events:none; font-family:var(--sans); }
   .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
 
   canvas{ display:none; }
-
   details > summary{ list-style:none; cursor:pointer; display:flex; align-items:center; justify-content:space-between; }
   details > summary::-webkit-details-marker{ display:none; }
   .chev{ transition:transform .2s; color:var(--text-dim); }
   details[open] .chev{ transform:rotate(180deg); }
-
-  .section-label{ font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-dim); font-weight:700; margin:0 0 8px; }
 </style>
 </head>
 <body>
@@ -211,8 +153,9 @@
   <div class="cam-placeholder" id="camPlaceholder">
     <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#7c8896" stroke-width="1.6"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
     <button class="startbtn" id="startBtn">啟動相機</button>
-    <p>對準 IC 表面印字，自動開始掃描</p>
+    <p>將 IC 置於掃描區內，系統會自動偵測並辨識，不論有幾顆</p>
   </div>
+  <div class="zone-guide" id="zoneEl"></div>
   <div id="scanLayer"></div>
   <div class="cam-tools">
     <button id="shotBtn" title="截圖">
@@ -230,22 +173,16 @@
 </div>
 
 <main>
-  <div class="card">
-    <p class="section-label">同時掃描顆數</p>
-    <div class="row" id="slotSelectorRow">
-      <button class="btn active" data-count="1">1 顆 IC</button>
-      <button class="btn" data-count="2">2 顆 IC</button>
-      <button class="btn" data-count="3">3 顆 IC</button>
-    </div>
-    <div class="row">
-      <button class="btn ghost" id="resetBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 102.13-9.36L1 10"></path></svg>
-        手動重置全部
-      </button>
-    </div>
+  <div class="row" style="margin:0;">
+    <button class="btn ghost" id="resetBtn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 102.13-9.36L1 10"></path></svg>
+      清除全部並重新掃描
+    </button>
   </div>
 
-  <div id="resultsContainer"></div>
+  <div id="resultsContainer">
+    <div class="card"><div class="placeholder-dim">尚未偵測到 IC，請將晶片置於掃描區內。</div></div>
+  </div>
 
   <div class="card" id="settingsCard">
     <details id="settingsDetails">
@@ -371,7 +308,7 @@
     settingsDetails.scrollIntoView({ behavior:"smooth", block:"start" });
   });
 
-  // ================= toast =================
+  // ================= toast / clipboard =================
   const toast = document.getElementById("toast");
   let toastTimer = null;
   function showToast(msg){
@@ -380,7 +317,6 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => toast.classList.remove("show"), 1800);
   }
-
   function copyTextToClipboard(text){
     navigator.clipboard.writeText(text).then(() => {
       showToast("已複製到剪貼簿");
@@ -400,6 +336,7 @@
   const camPlaceholder = document.getElementById("camPlaceholder");
   const startBtn = document.getElementById("startBtn");
   const camWrap = document.getElementById("camWrap");
+  const zoneEl = document.getElementById("zoneEl");
   const scanLayer = document.getElementById("scanLayer");
   const camStatusText = document.getElementById("camStatusText");
   const statusDot = document.getElementById("statusDot");
@@ -410,7 +347,6 @@
   const zoomIndicator = document.getElementById("zoomIndicator");
   const resultsContainer = document.getElementById("resultsContainer");
   const resetBtn = document.getElementById("resetBtn");
-  const slotSelectorRow = document.getElementById("slotSelectorRow");
   const captureCanvas = document.getElementById("captureCanvas");
   const shotCanvas = document.getElementById("shotCanvas");
 
@@ -422,16 +358,18 @@
 
   let worker = null;
   let workerReady = false;
-  let ocrTimer = null;
+  let mainTimer = null;
   let isRecognizing = false;
-  let rrPointer = 0;
+  let uidCounter = 1;
 
   const STABLE_THRESHOLD = 2;
-  const OCR_TICK_DELAY = 90;
-  const EMPTY_STREAK_TO_RESET = 4;
+  const TICK_DELAY = 60;
+  const EMPTY_STREAK_TO_RESET = 5;
   const MIN_TEXT_LEN = 3;
+  const MAX_REGIONS = 4;
+  const MISSING_GRACE = 5;
 
-  let slots = [];
+  let regionStates = [];
 
   function setStatus(kind, label){
     statusDot.className = "dot" + (kind ? " " + kind : "");
@@ -462,8 +400,8 @@
       applyZoom();
 
       camPlaceholder.style.display = "none";
-      buildSlots(currentSlotCount());
-      scheduleOcr(150);
+      // 確保 video 已有實際尺寸後才開始主迴圈
+      waitForVideoReady().then(() => scheduleTick(150));
     }catch(err){
       console.error(err);
       setStatus("bad", "相機錯誤");
@@ -472,6 +410,16 @@
     }
   }
   startBtn.addEventListener("click", startCamera);
+
+  function waitForVideoReady(){
+    return new Promise(resolve => {
+      function check(){
+        if(video.videoWidth > 0 && video.videoHeight > 0) resolve();
+        else requestAnimationFrame(check);
+      }
+      check();
+    });
+  }
 
   function applyZoom(){
     if(!stream) return;
@@ -502,94 +450,26 @@
     else showToast("已達最小倍率");
   });
 
+  resetBtn.addEventListener("click", () => {
+    regionStates = [];
+    renderAllRegionCards();
+    updateHeaderStatus();
+    showToast("已清除，重新自動偵測中...");
+  });
+
   // ================= Tesseract worker =================
   async function ensureWorker(){
     if(workerReady) return;
     worker = await Tesseract.createWorker("eng", 1, { logger: () => {} });
     await worker.setParameters({
       tessedit_char_whitelist: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ -./:+",
-      tessedit_pageseg_mode: "6"
+      tessedit_pageseg_mode: "3"   // 全自動版面分析：可自動辨識出多塊分開的文字（對應多顆IC）
     });
     workerReady = true;
   }
 
-  // ================= 多顆 IC 掃描框管理 =================
-  function currentSlotCount(){
-    const activeBtn = slotSelectorRow.querySelector(".btn.active");
-    return activeBtn ? parseInt(activeBtn.dataset.count, 10) : 1;
-  }
-
-  slotSelectorRow.querySelectorAll(".btn").forEach(btn => {
-    btn.addEventListener("click", () => {
-      slotSelectorRow.querySelectorAll(".btn").forEach(b => b.classList.remove("active"));
-      btn.classList.add("active");
-      if(stream) buildSlots(parseInt(btn.dataset.count, 10));
-    });
-  });
-
-  function buildSlots(count){
-    scanLayer.innerHTML = "";
-    resultsContainer.innerHTML = "";
-    slots = [];
-    const gap = count > 1 ? 4 : 0;
-    const slotWidthPct = (100 - gap * (count - 1)) / count;
-
-    for(let i = 0; i < count; i++){
-      const leftPct = i * (slotWidthPct + gap);
-      const frame = document.createElement("div");
-      frame.className = "scan-frame scanning";
-      frame.style.left = leftPct + "%";
-      frame.style.top = "0%";
-      frame.style.width = slotWidthPct + "%";
-      frame.style.height = "100%";
-      if(count > 1){
-        const label = document.createElement("div");
-        label.className = "slot-label";
-        label.textContent = "IC " + (i + 1);
-        frame.appendChild(label);
-      }
-      scanLayer.appendChild(frame);
-
-      const card = document.createElement("div");
-      card.className = "card";
-      card.innerHTML = `
-        <h2>${count > 1 ? ("IC " + (i + 1) + " 辨識結果") : "OCR 辨識結果"} <span class="badge" id="badge-${i}">等待中</span></h2>
-        <div class="ocr-text empty" id="ocrText-${i}">尚無辨識結果</div>
-        <div class="row">
-          <button class="btn primary copy-slot-btn" data-slot="${i}">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
-            複製文字
-          </button>
-        </div>
-        <div class="match-name" id="matchName-${i}" style="display:none;"></div>
-        <div id="cmpList-${i}"><div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div></div>
-      `;
-      resultsContainer.appendChild(card);
-
-      slots.push({
-        index: i, el: frame,
-        state: "idle", candidateText: "", stableCount: 0, emptyStreak: 0,
-        lastResult: "", cmp: null
-      });
-    }
-
-    resultsContainer.querySelectorAll(".copy-slot-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        const idx = parseInt(btn.dataset.slot, 10);
-        const slot = slots[idx];
-        if(!slot || !slot.lastResult){ showToast("尚無文字可複製"); return; }
-        copyTextToClipboard(slot.lastResult);
-      });
-    });
-
-    rrPointer = 0;
-    updateHeaderStatus();
-  }
-
-  resetBtn.addEventListener("click", () => { slots.forEach(resetSlot); updateHeaderStatus(); showToast("已重置所有掃描框"); });
-
-  // ================= 影像擷取與二值化（Otsu 自動閾值） =================
-  function getCropRectForEl(frameEl){
+  // ================= 幾何座標對應（含縮放/變焦） =================
+  function getViewportMapping(){
     const vw = video.videoWidth, vh = video.videoHeight;
     if(!vw || !vh) return null;
     const cw = camWrap.clientWidth, ch = camWrap.clientHeight;
@@ -601,7 +481,12 @@
       renderW = cw; renderH = cw / videoAspect; offsetX = 0; offsetY = (renderH - ch) / 2;
     }
     const scale = vw / renderW;
+    return { cw, ch, offsetX, offsetY, scale };
+  }
 
+  function getCropRectForEl(frameEl){
+    const m = getViewportMapping();
+    if(!m) return null;
     const boxRect = frameEl.getBoundingClientRect();
     const wrapRect = camWrap.getBoundingClientRect();
     let boxX = boxRect.left - wrapRect.left;
@@ -610,7 +495,7 @@
     let boxH = boxRect.height;
 
     if(!hasHardwareZoom && zoomLevel > 1.0){
-      const cx = cw / 2, cy = ch / 2;
+      const cx = m.cw / 2, cy = m.ch / 2;
       const x2 = boxX + boxW, y2 = boxY + boxH;
       const ux1 = cx + (boxX - cx) / zoomLevel;
       const uy1 = cy + (boxY - cy) / zoomLevel;
@@ -618,15 +503,41 @@
       const uy2 = cy + (y2 - cy) / zoomLevel;
       boxX = ux1; boxY = uy1; boxW = ux2 - ux1; boxH = uy2 - uy1;
     }
-
     return {
-      sx: (boxX + offsetX) * scale,
-      sy: (boxY + offsetY) * scale,
-      sw: boxW * scale,
-      sh: boxH * scale
+      sx: (boxX + m.offsetX) * m.scale,
+      sy: (boxY + m.offsetY) * m.scale,
+      sw: boxW * m.scale,
+      sh: boxH * m.scale
     };
   }
 
+  function nativeRectToContainerRect(nx, ny, nw, nh){
+    const m = getViewportMapping();
+    if(!m) return { left:0, top:0, width:0, height:0 };
+    let ux1 = nx / m.scale - m.offsetX;
+    let uy1 = ny / m.scale - m.offsetY;
+    let ux2 = (nx + nw) / m.scale - m.offsetX;
+    let uy2 = (ny + nh) / m.scale - m.offsetY;
+    if(!hasHardwareZoom && zoomLevel > 1.0){
+      const cx = m.cw / 2, cy = m.ch / 2;
+      ux1 = cx + (ux1 - cx) * zoomLevel;
+      uy1 = cy + (uy1 - cy) * zoomLevel;
+      ux2 = cx + (ux2 - cx) * zoomLevel;
+      uy2 = cy + (uy2 - cy) * zoomLevel;
+    }
+    return { left: ux1, top: uy1, width: ux2 - ux1, height: uy2 - uy1 };
+  }
+
+  function updateOverlayPosition(rs){
+    if(!rs.el || !rs.native) return;
+    const r = nativeRectToContainerRect(rs.native.nx, rs.native.ny, rs.native.nw, rs.native.nh);
+    rs.el.style.left = Math.round(r.left) + "px";
+    rs.el.style.top = Math.round(r.top) + "px";
+    rs.el.style.width = Math.max(14, Math.round(r.width)) + "px";
+    rs.el.style.height = Math.max(14, Math.round(r.height)) + "px";
+  }
+
+  // ================= Otsu 自動二值化（僅用於畫質強化，不再用於偵測） =================
   function computeOtsuThreshold(gray, n){
     const hist = new Array(256).fill(0);
     for(let i = 0; i < n; i++) hist[gray[i]]++;
@@ -646,19 +557,11 @@
     return threshold;
   }
 
-  function captureCroppedCanvas(frameEl){
-    const rect = getCropRectForEl(frameEl);
-    if(!rect || rect.sw <= 4 || rect.sh <= 4) return null;
-    const upscale = 3.0;
-    captureCanvas.width = Math.max(1, Math.round(rect.sw * upscale));
-    captureCanvas.height = Math.max(1, Math.round(rect.sh * upscale));
-    const ctx = captureCanvas.getContext("2d");
-    ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
-
+  function applyOtsuBinarizeToCtx(ctx, w, h){
     try{
-      const imgData = ctx.getImageData(0, 0, captureCanvas.width, captureCanvas.height);
+      const imgData = ctx.getImageData(0, 0, w, h);
       const data = imgData.data;
-      const n = captureCanvas.width * captureCanvas.height;
+      const n = w * h;
       const gray = new Uint8ClampedArray(n);
       for(let i = 0, p = 0; i < data.length; i += 4, p++){
         gray[p] = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114) | 0;
@@ -674,129 +577,298 @@
         data[i] = v; data[i+1] = v; data[i+2] = v;
       }
       ctx.putImageData(imgData, 0, 0);
+      return true;
     }catch(e){
-      console.warn("二值化失敗，改用濾鏡備援:", e);
-      ctx.filter = "grayscale(1) contrast(1.6) brightness(1.05)";
-      ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, captureCanvas.width, captureCanvas.height);
+      console.warn("二值化失敗:", e);
+      return false;
     }
-    return captureCanvas;
   }
 
-  // ================= OCR 輪詢（多框輪流辨識，共用單一 worker） =================
-  function scheduleOcr(delay){
-    clearTimeout(ocrTimer);
-    ocrTimer = setTimeout(runOcrCycle, delay != null ? delay : OCR_TICK_DELAY);
+  // ================= 擷取整個掃描區並二值化 =================
+  function captureZoneCanvas(){
+    const rect = getCropRectForEl(zoneEl);
+    if(!rect || rect.sw <= 10 || rect.sh <= 10) return null;
+    const targetW = 1100;
+    let upscale = targetW / rect.sw;
+    upscale = Math.max(1.0, Math.min(upscale, 4));
+    const w = Math.max(1, Math.round(rect.sw * upscale));
+    const h = Math.max(1, Math.round(rect.sh * upscale));
+    captureCanvas.width = w; captureCanvas.height = h;
+    const ctx = captureCanvas.getContext("2d");
+    ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, w, h);
+    if(!applyOtsuBinarizeToCtx(ctx, w, h)){
+      ctx.filter = "grayscale(1) contrast(1.6) brightness(1.05)";
+      ctx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, w, h);
+    }
+    return { canvas: captureCanvas, rect, canvasW: w, canvasH: h };
   }
 
-  async function runOcrCycle(){
-    if(!stream || !workerReady || isRecognizing || slots.length === 0){ scheduleOcr(); return; }
-    const slot = slots[rrPointer % slots.length];
-    rrPointer++;
+  // ================= 從 Tesseract 版面分析結果取出各區塊 =================
+  function extractBlocks(data, capW, capH){
+    const src = (data && data.blocks && data.blocks.length) ? data.blocks
+              : (data && data.paragraphs && data.paragraphs.length) ? data.paragraphs
+              : null;
+    if(src){
+      return src
+        .map(b => ({ text: (b.text || "").trim(), bbox: b.bbox }))
+        .filter(b => b.bbox && b.text.replace(/\s/g, "").length >= 2);
+    }
+    const text = (data && data.text) ? data.text.trim() : "";
+    if(!text) return [];
+    return [{ text, bbox: { x0: 0, y0: 0, x1: capW, y1: capH } }];
+  }
+
+  function blockToRegion(b, capture){
+    const bw = b.bbox.x1 - b.bbox.x0, bh = b.bbox.y1 - b.bbox.y0;
+    if(bw <= 0 || bh <= 0) return null;
+    return {
+      text: b.text,
+      area: bw * bh,
+      nx: capture.rect.sx + (b.bbox.x0 / capture.canvasW) * capture.rect.sw,
+      ny: capture.rect.sy + (b.bbox.y0 / capture.canvasH) * capture.rect.sh,
+      nw: (bw / capture.canvasW) * capture.rect.sw,
+      nh: (bh / capture.canvasH) * capture.rect.sh
+    };
+  }
+
+  // ================= 區域狀態管理（依位置自動配對追蹤） =================
+  function createRegionState(){
+    return {
+      uid: uidCounter++, el: null, native: null,
+      state: "idle", candidateText: "", stableCount: 0, emptyStreak: 0,
+      lastResult: "", cmp: null, missedTicks: 0
+    };
+  }
+
+  function reconcileAndProcess(regions){
+    const usedOld = new Set();
+    const matched = [];
+    regions.forEach(r => {
+      const rCenterX = r.nx + r.nw / 2, rCenterY = r.ny + r.nh / 2;
+      let bestIdx = -1, bestDist = Infinity;
+      regionStates.forEach((rs, idx) => {
+        if(usedOld.has(idx) || !rs.native) return;
+        const oldCenterX = rs.native.nx + rs.native.nw / 2;
+        const oldCenterY = rs.native.ny + rs.native.nh / 2;
+        const dist = Math.hypot(oldCenterX - rCenterX, oldCenterY - rCenterY);
+        if(dist < bestDist){ bestDist = dist; bestIdx = idx; }
+      });
+      const proximityThreshold = Math.max(r.nw, r.nh) * 1.4 + 70;
+      let rs;
+      if(bestIdx >= 0 && bestDist < proximityThreshold){
+        usedOld.add(bestIdx);
+        rs = regionStates[bestIdx];
+      } else {
+        rs = createRegionState();
+      }
+      rs.native = { nx: r.nx, ny: r.ny, nw: r.nw, nh: r.nh };
+      rs.missedTicks = 0;
+      handleOcrResult(rs, r.text);
+      matched.push(rs);
+    });
+    regionStates.forEach((rs, idx) => {
+      if(usedOld.has(idx)) return;
+      rs.missedTicks = (rs.missedTicks || 0) + 1;
+      if(rs.missedTicks <= MISSING_GRACE) matched.push(rs);
+    });
+    matched.sort((a, b) => {
+      const ax = a.native ? a.native.nx : 0, bx = b.native ? b.native.nx : 0;
+      return ax - bx;
+    });
+
+    const prevUids = regionStates.map(rs => rs.uid).join(",");
+    regionStates = matched;
+    const newUids = regionStates.map(rs => rs.uid).join(",");
+    return prevUids !== newUids;
+  }
+
+  function lockColorClass(cmp){
+    if(!cmp) return "scanning";
+    if(cmp.kind === "green") return "ok";
+    if(cmp.kind === "yellow") return "warn";
+    if(cmp.kind === "red") return "bad";
+    return "scanning";
+  }
+  function badgeTextFor(rs){
+    if(rs.state === "locked" && rs.cmp){
+      if(rs.cmp.noStandards) return "無標準文字";
+      if(rs.cmp.kind === "green") return "完全符合";
+      if(rs.cmp.kind === "yellow") return "部分符合";
+      return "完全不符";
+    }
+    return "偵測中";
+  }
+  function setSlotBadge(rs, text, kind){
+    const el = document.getElementById("badge-" + rs.uid);
+    if(!el) return;
+    el.textContent = text;
+    el.className = "badge" + (kind ? " " + kind : "");
+  }
+
+  function renderAllRegionCards(){
+    scanLayer.innerHTML = "";
+    resultsContainer.innerHTML = "";
+    if(regionStates.length === 0){
+      resultsContainer.innerHTML = '<div class="card"><div class="placeholder-dim">尚未偵測到 IC，請將晶片置於掃描區內。</div></div>';
+      return;
+    }
+    const multi = regionStates.length > 1;
+    regionStates.forEach((rs, i) => {
+      const frame = document.createElement("div");
+      frame.className = "auto-frame " + lockColorClass(rs.state === "locked" ? rs.cmp : null);
+      if(multi){
+        const label = document.createElement("div");
+        label.className = "slot-label";
+        label.textContent = "IC " + (i + 1);
+        frame.appendChild(label);
+      }
+      scanLayer.appendChild(frame);
+      rs.el = frame;
+      updateOverlayPosition(rs);
+
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML = `
+        <h2>${multi ? ("IC " + (i + 1) + " 辨識結果") : "OCR 辨識結果"} <span class="badge" id="badge-${rs.uid}"></span></h2>
+        <div class="ocr-text empty" id="ocrText-${rs.uid}">尚無辨識結果</div>
+        <div class="row">
+          <button class="btn primary copy-slot-btn" data-uid="${rs.uid}">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
+            複製文字
+          </button>
+        </div>
+        <div class="match-name" id="matchName-${rs.uid}" style="display:none;"></div>
+        <div id="cmpList-${rs.uid}"><div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div></div>
+      `;
+      resultsContainer.appendChild(card);
+      setSlotBadge(rs, badgeTextFor(rs), rs.state === "locked" ? lockColorClass(rs.cmp) : null);
+
+      if(rs.state === "locked"){
+        const ocrTextEl = document.getElementById("ocrText-" + rs.uid);
+        ocrTextEl.textContent = rs.lastResult;
+        ocrTextEl.classList.remove("empty");
+        if(rs.cmp) renderComparison(rs, rs.cmp);
+      }
+    });
+
+    resultsContainer.querySelectorAll(".copy-slot-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const uid = btn.dataset.uid;
+        const rs = regionStates.find(r => String(r.uid) === uid);
+        if(!rs || !rs.lastResult){ showToast("尚無文字可複製"); return; }
+        copyTextToClipboard(rs.lastResult);
+      });
+    });
+  }
+
+  // ================= OCR 主迴圈 =================
+  function scheduleTick(delay){
+    clearTimeout(mainTimer);
+    mainTimer = setTimeout(mainTick, delay != null ? delay : TICK_DELAY);
+  }
+
+  async function mainTick(){
+    if(!stream || !workerReady || isRecognizing){ scheduleTick(); return; }
     isRecognizing = true;
     try{
-      const canvas = captureCroppedCanvas(slot.el);
-      if(canvas){
-        const { data } = await worker.recognize(canvas);
-        const rawText = (data && data.text ? data.text : "").trim();
-        handleOcrResult(slot, rawText);
+      const capture = captureZoneCanvas();
+      if(capture){
+        const { data } = await worker.recognize(capture.canvas);
+        const blocks = extractBlocks(data, capture.canvasW, capture.canvasH);
+        let regions = blocks.map(b => blockToRegion(b, capture)).filter(Boolean);
+        regions.sort((a, b) => b.area - a.area);
+        regions = regions.slice(0, MAX_REGIONS);
+
+        const structureChanged = reconcileAndProcess(regions);
+        if(structureChanged) renderAllRegionCards();
+        else regionStates.forEach(rs => updateOverlayPosition(rs));
       }
     }catch(err){
       console.error(err);
-    }finally{
-      isRecognizing = false;
-      scheduleOcr();
     }
+    isRecognizing = false;
+    updateHeaderStatus();
+    scheduleTick();
   }
 
   function cleanText(t){
     return t.split("\n").map(l => l.trim()).filter(l => l.replace(/[^A-Za-z0-9]/g, "").length >= 2).join("\n");
   }
 
-  function setSlotBadge(slot, text, kind){
-    const el = document.getElementById("badge-" + slot.index);
-    if(!el) return;
-    el.textContent = text;
-    el.className = "badge" + (kind ? " " + kind : "");
-  }
-
-  function handleOcrResult(slot, rawText){
+  function handleOcrResult(rs, rawText){
     const cleaned = cleanText(rawText);
     const meaningfulLen = cleaned.replace(/\s/g, "").length;
 
-    if(slot.state === "idle"){
+    if(rs.state === "idle"){
       if(meaningfulLen >= MIN_TEXT_LEN){
-        if(cleaned === slot.candidateText){
-          slot.stableCount++;
-          setSlotBadge(slot, `校正中 ${slot.stableCount}/${STABLE_THRESHOLD}`, null);
-          if(slot.stableCount >= STABLE_THRESHOLD){
-            lockResult(slot, cleaned);
-            slot.candidateText = ""; slot.stableCount = 0;
+        if(cleaned === rs.candidateText){
+          rs.stableCount++;
+          setSlotBadge(rs, `校正中 ${rs.stableCount}/${STABLE_THRESHOLD}`, null);
+          if(rs.stableCount >= STABLE_THRESHOLD){
+            lockResult(rs, cleaned);
+            rs.candidateText = ""; rs.stableCount = 0;
           }
         }else{
-          slot.candidateText = cleaned; slot.stableCount = 1;
-          setSlotBadge(slot, "偵測到文字", null);
+          rs.candidateText = cleaned; rs.stableCount = 1;
+          setSlotBadge(rs, "偵測到文字", null);
         }
       }else{
-        slot.candidateText = ""; slot.stableCount = 0;
-        setSlotBadge(slot, "掃描中", null);
+        rs.candidateText = ""; rs.stableCount = 0;
+        setSlotBadge(rs, "偵測中", null);
       }
-    }else if(slot.state === "locked"){
+    }else if(rs.state === "locked"){
       if(meaningfulLen < MIN_TEXT_LEN){
-        slot.emptyStreak++;
-        if(slot.emptyStreak >= EMPTY_STREAK_TO_RESET) resetSlot(slot);
+        rs.emptyStreak++;
+        if(rs.emptyStreak >= EMPTY_STREAK_TO_RESET) resetRegionIdle(rs);
       }else{
-        slot.emptyStreak = 0;
+        rs.emptyStreak = 0;
       }
     }
-    updateHeaderStatus();
   }
 
-  function lockResult(slot, text){
-    slot.state = "locked";
-    slot.emptyStreak = 0;
-    slot.lastResult = text;
+  function lockResult(rs, text){
+    rs.state = "locked";
+    rs.emptyStreak = 0;
+    rs.lastResult = text;
 
-    const ocrTextEl = document.getElementById("ocrText-" + slot.index);
-    ocrTextEl.textContent = text;
-    ocrTextEl.classList.remove("empty");
+    const ocrTextEl = document.getElementById("ocrText-" + rs.uid);
+    if(ocrTextEl){ ocrTextEl.textContent = text; ocrTextEl.classList.remove("empty"); }
 
     const cmp = compareAgainstStandards(text);
-    slot.cmp = cmp;
-    renderComparison(slot, cmp);
+    rs.cmp = cmp;
+    renderComparison(rs, cmp);
 
-    let colorClass = "bad";
-    if(cmp.kind === "green") colorClass = "ok";
-    else if(cmp.kind === "yellow") colorClass = "warn";
-    else if(cmp.kind === "gray") colorClass = "scanning";
-    slot.el.className = "scan-frame " + colorClass;
+    if(rs.el) rs.el.className = "auto-frame " + lockColorClass(cmp);
   }
 
-  function resetSlot(slot){
-    slot.state = "idle";
-    slot.emptyStreak = 0; slot.candidateText = ""; slot.stableCount = 0;
-    slot.lastResult = ""; slot.cmp = null;
-    slot.el.className = "scan-frame scanning";
+  function resetRegionIdle(rs){
+    rs.state = "idle";
+    rs.emptyStreak = 0; rs.candidateText = ""; rs.stableCount = 0;
+    rs.lastResult = ""; rs.cmp = null;
+    if(rs.el) rs.el.className = "auto-frame scanning";
 
-    const ocrTextEl = document.getElementById("ocrText-" + slot.index);
-    ocrTextEl.textContent = "尚無辨識結果";
-    ocrTextEl.classList.add("empty");
-    setSlotBadge(slot, "等待中", null);
-
-    const matchNameEl = document.getElementById("matchName-" + slot.index);
-    matchNameEl.style.display = "none";
-    document.getElementById("cmpList-" + slot.index).innerHTML =
-      '<div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div>';
+    const ocrTextEl = document.getElementById("ocrText-" + rs.uid);
+    if(ocrTextEl){ ocrTextEl.textContent = "尚無辨識結果"; ocrTextEl.classList.add("empty"); }
+    setSlotBadge(rs, "偵測中", null);
+    const matchNameEl = document.getElementById("matchName-" + rs.uid);
+    if(matchNameEl) matchNameEl.style.display = "none";
+    const cmpListEl = document.getElementById("cmpList-" + rs.uid);
+    if(cmpListEl) cmpListEl.innerHTML = '<div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div>';
   }
 
   function updateHeaderStatus(){
-    if(slots.length === 0){ setStatus(null, "STANDBY"); return; }
+    if(regionStates.length === 0){
+      setStatus("scanning", "掃描中");
+      if(stream) camStatusText.textContent = `尚未偵測到 IC　|　倍率 ${zoomLevel.toFixed(1)}x` + (hasHardwareZoom ? "" : " (數位)");
+      return;
+    }
     let anyBad = false, anyWarn = false, allLocked = true, lockedCount = 0;
-    slots.forEach(s => {
-      if(s.state === "locked"){
+    regionStates.forEach(rs => {
+      if(rs.state === "locked"){
         lockedCount++;
-        if(s.cmp){
-          if(s.cmp.kind === "red") anyBad = true;
-          else if(s.cmp.kind === "yellow") anyWarn = true;
+        if(rs.cmp){
+          if(rs.cmp.kind === "red") anyBad = true;
+          else if(rs.cmp.kind === "yellow") anyWarn = true;
         }
       }else{
         allLocked = false;
@@ -807,10 +879,10 @@
     else if(anyWarn){ kind = "warn"; label = "部分符合"; }
     else if(allLocked && lockedCount > 0){ kind = "ok"; label = "全部符合"; }
     setStatus(kind, label);
-    camStatusText.textContent = `已鎖定 ${lockedCount}/${slots.length}　|　倍率 ${zoomLevel.toFixed(1)}x` + (hasHardwareZoom ? "" : " (數位)");
+    camStatusText.textContent = `偵測到 ${regionStates.length} 顆　|　已鎖定 ${lockedCount}　|　倍率 ${zoomLevel.toFixed(1)}x` + (hasHardwareZoom ? "" : " (數位)");
   }
 
-  // ================= 模糊比對（容錯常見 OCR 混淆字元） =================
+  // ================= 模糊比對 =================
   function normLine(l){ return l.toUpperCase().replace(/[^A-Z0-9]/g, ""); }
 
   function getLevenshteinDistance(a, b){
@@ -828,14 +900,12 @@
     }
     return tmp[a.length][b.length];
   }
-
   function areCharsConfusable(c1, c2){
     if(c1 === c2) return true;
     const sets = [["8","B","E"], ["0","O","D","Q","G"], ["1","I","L","T","J"], ["5","S"], ["2","Z"]];
     for(const set of sets){ if(set.includes(c1) && set.includes(c2)) return true; }
     return false;
   }
-
   function isFuzzyMatch(std, ocr){
     const nStd = normLine(std), nOcr = normLine(ocr);
     if(!nStd || !nOcr) return false;
@@ -881,23 +951,23 @@
     return { kind, stdName: best.stdName, lines: best.lines, ratio: best.ratio };
   }
 
-  function renderComparison(slot, cmp){
-    const i = slot.index;
-    const matchNameEl = document.getElementById("matchName-" + i);
-    const cmpListEl = document.getElementById("cmpList-" + i);
+  function renderComparison(rs, cmp){
+    const matchNameEl = document.getElementById("matchName-" + rs.uid);
+    const cmpListEl = document.getElementById("cmpList-" + rs.uid);
+    if(!matchNameEl || !cmpListEl) return;
 
     if(cmp.noStandards){
       matchNameEl.style.display = "none";
-      setSlotBadge(slot, "無標準文字", null);
+      setSlotBadge(rs, "無標準文字", null);
       cmpListEl.innerHTML = '<div class="placeholder-dim">請先在下方新增標準文字以進行比對。</div>';
       return;
     }
     matchNameEl.style.display = "block";
     matchNameEl.textContent = "比對對象：" + cmp.stdName;
 
-    if(cmp.kind === "green") setSlotBadge(slot, "完全符合", "ok");
-    else if(cmp.kind === "yellow") setSlotBadge(slot, "部分符合", "warn");
-    else setSlotBadge(slot, "完全不符", "bad");
+    if(cmp.kind === "green") setSlotBadge(rs, "完全符合", "ok");
+    else if(cmp.kind === "yellow") setSlotBadge(rs, "部分符合", "warn");
+    else setSlotBadge(rs, "完全不符", "bad");
 
     cmpListEl.innerHTML = "";
     cmp.lines.forEach(r => {
