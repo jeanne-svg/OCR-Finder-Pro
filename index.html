@@ -369,6 +369,17 @@
   const MAX_REGIONS = 4;
   const MISSING_GRACE = 5;
 
+  // 手震/移動偵測：畫面不夠穩定時，先不做昂貴的 OCR，避免抓到模糊畫面與框線亂跳
+  const MOTION_W = 120, MOTION_H = 68;
+  const MOTION_THRESHOLD = 7;      // 平均每像素灰階差異超過此值視為「還在動」
+  const REQUIRED_STABLE_TICKS = 2; // 需連續幾次偵測到穩定才觸發辨識
+  const POSITION_SMOOTH = 0.45;    // 框線位置平滑係數（避免小幅晃動造成跳動）
+  const motionCanvas = document.createElement("canvas");
+  motionCanvas.width = MOTION_W; motionCanvas.height = MOTION_H;
+  const motionCtx = motionCanvas.getContext("2d", { willReadFrequently: true });
+  let lastMotionFrame = null;
+  let stableTicks = 0;
+
   let regionStates = [];
 
   function setStatus(kind, label){
@@ -584,6 +595,34 @@
     }
   }
 
+  // ================= 手震/移動偵測 =================
+  // 用一張很小的灰階縮圖比對前後兩幀的差異，判斷手機/晶片是否還在晃動。
+  // 只有畫面夠穩定時才進行昂貴的 OCR，避免拍到模糊畫面（讀不出字）以及框線亂跳。
+  function computeMotionScore(){
+    const rect = getCropRectForEl(zoneEl);
+    if(!rect || rect.sw <= 10 || rect.sh <= 10) return 999;
+    try{
+      motionCtx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, MOTION_W, MOTION_H);
+      const imgData = motionCtx.getImageData(0, 0, MOTION_W, MOTION_H);
+      const data = imgData.data;
+      const n = MOTION_W * MOTION_H;
+      const gray = new Uint8ClampedArray(n);
+      for(let i = 0, p = 0; i < data.length; i += 4, p++){
+        gray[p] = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114) | 0;
+      }
+      let score = 999;
+      if(lastMotionFrame){
+        let sum = 0;
+        for(let p = 0; p < n; p++) sum += Math.abs(gray[p] - lastMotionFrame[p]);
+        score = sum / n;
+      }
+      lastMotionFrame = gray;
+      return score;
+    }catch(e){
+      return 999;
+    }
+  }
+
   // ================= 擷取整個掃描區並二值化 =================
   function captureZoneCanvas(){
     const rect = getCropRectForEl(zoneEl);
@@ -655,13 +694,26 @@
       });
       const proximityThreshold = Math.max(r.nw, r.nh) * 1.4 + 70;
       let rs;
+      let isNew = false;
       if(bestIdx >= 0 && bestDist < proximityThreshold){
         usedOld.add(bestIdx);
         rs = regionStates[bestIdx];
       } else {
         rs = createRegionState();
+        isNew = true;
       }
-      rs.native = { nx: r.nx, ny: r.ny, nw: r.nw, nh: r.nh };
+      if(!isNew && rs.native){
+        // 平滑過渡到新位置，避免框線因些微誤差而跳動
+        const k = POSITION_SMOOTH;
+        rs.native = {
+          nx: rs.native.nx + (r.nx - rs.native.nx) * k,
+          ny: rs.native.ny + (r.ny - rs.native.ny) * k,
+          nw: rs.native.nw + (r.nw - rs.native.nw) * k,
+          nh: rs.native.nh + (r.nh - rs.native.nh) * k
+        };
+      } else {
+        rs.native = { nx: r.nx, ny: r.ny, nw: r.nw, nh: r.nh };
+      }
       rs.missedTicks = 0;
       handleOcrResult(rs, r.text);
       matched.push(rs);
@@ -768,7 +820,25 @@
   }
 
   async function mainTick(){
-    if(!stream || !workerReady || isRecognizing){ scheduleTick(); return; }
+    if(!stream || !workerReady){ scheduleTick(); return; }
+    if(isRecognizing){ scheduleTick(); return; }
+
+    const motion = computeMotionScore();
+    if(motion > MOTION_THRESHOLD){
+      stableTicks = 0;
+      setStatus("scanning", "偵測中");
+      camStatusText.textContent = "畫面還在晃動，請保持穩定...";
+      // 晃動中：仍然更新既有框線的顯示位置（跟著鏡頭走），但不做昂貴的OCR
+      regionStates.forEach(rs => updateOverlayPosition(rs));
+      scheduleTick(70);
+      return;
+    }
+    stableTicks++;
+    if(stableTicks < REQUIRED_STABLE_TICKS){
+      scheduleTick(70);
+      return;
+    }
+
     isRecognizing = true;
     try{
       const capture = captureZoneCanvas();
