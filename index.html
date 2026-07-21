@@ -25,6 +25,7 @@
   .brand{ display:flex; align-items:center; gap:10px; }
   .brand .dot{ width:9px; height:9px; border-radius:50%; background:var(--idle); box-shadow:0 0 8px var(--idle); transition:.25s;}
   .brand .dot.scanning{ background:var(--accent); box-shadow:0 0 10px var(--accent); animation:pulse 1.2s infinite; }
+  .brand .dot.busy{ background:var(--accent); box-shadow:0 0 10px var(--accent); animation:pulse .5s infinite; }
   .brand .dot.ok{ background:var(--ok); box-shadow:0 0 10px var(--ok); }
   .brand .dot.warn{ background:var(--warn); box-shadow:0 0 10px var(--warn); }
   .brand .dot.bad{ background:var(--bad); box-shadow:0 0 10px var(--bad); }
@@ -47,12 +48,12 @@
 
   .zone-guide{ position:absolute; left:6%; top:14%; width:88%; height:68%;
     border:2px dashed rgba(255,255,255,.22); border-radius:16px;
-    box-shadow:0 0 0 1200px rgba(0,0,0,.4); pointer-events:none; z-index:2; }
+    box-shadow:0 0 0 1200px rgba(0,0,0,.4); pointer-events:none; z-index:2; transition:border-color .2s; }
+  .zone-guide.busy{ border-color:var(--accent); border-style:solid; }
+  .zone-guide.locked{ border-color:var(--ok); border-style:solid; }
   #scanLayer{ position:absolute; inset:0; z-index:3; }
   .auto-frame{ position:absolute; border:3px solid var(--idle); border-radius:10px;
-    transition:border-color .2s, box-shadow .2s, left .15s, top .15s, width .15s, height .15s;
     box-shadow:0 0 14px -3px rgba(0,0,0,.6); }
-  .auto-frame.scanning{ border-color:var(--accent); box-shadow:0 0 16px -3px var(--accent); }
   .auto-frame.ok{ border-color:var(--ok); box-shadow:0 0 18px -3px var(--ok); }
   .auto-frame.warn{ border-color:var(--warn); box-shadow:0 0 18px -3px var(--warn); }
   .auto-frame.bad{ border-color:var(--bad); box-shadow:0 0 18px -3px var(--bad); }
@@ -153,7 +154,7 @@
   <div class="cam-placeholder" id="camPlaceholder">
     <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="#7c8896" stroke-width="1.6"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"></path><circle cx="12" cy="13" r="4"></circle></svg>
     <button class="startbtn" id="startBtn">啟動相機</button>
-    <p>將 IC 置於掃描區內，系統會自動偵測並辨識，不論有幾顆</p>
+    <p>將 IC 置於掃描區內並保持穩定，系統偵測到清晰畫面會自動拍照辨識</p>
   </div>
   <div class="zone-guide" id="zoneEl"></div>
   <div id="scanLayer"></div>
@@ -176,12 +177,12 @@
   <div class="row" style="margin:0;">
     <button class="btn ghost" id="resetBtn">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"></polyline><path d="M3.51 15a9 9 0 102.13-9.36L1 10"></path></svg>
-      清除全部並重新掃描
+      清除結果並重新掃描
     </button>
   </div>
 
   <div id="resultsContainer">
-    <div class="card"><div class="placeholder-dim">尚未偵測到 IC，請將晶片置於掃描區內。</div></div>
+    <div class="card"><div class="placeholder-dim">將 IC 放入掃描區並保持穩定，系統會自動拍照辨識。</div></div>
   </div>
 
   <div class="card" id="settingsCard">
@@ -359,26 +360,32 @@
   let worker = null;
   let workerReady = false;
   let mainTimer = null;
-  let isRecognizing = false;
   let uidCounter = 1;
 
-  const STABLE_THRESHOLD = 2;
-  const TICK_DELAY = 60;
-  const EMPTY_STREAK_TO_RESET = 5;
   const MIN_TEXT_LEN = 3;
   const MAX_REGIONS = 4;
-  const MISSING_GRACE = 5;
 
-  // 手震/移動偵測：畫面不夠穩定時，先不做昂貴的 OCR，避免抓到模糊畫面與框線亂跳
-  const MOTION_W = 120, MOTION_H = 68;
-  const MOTION_THRESHOLD = 7;      // 平均每像素灰階差異超過此值視為「還在動」
-  const REQUIRED_STABLE_TICKS = 2; // 需連續幾次偵測到穩定才觸發辨識
-  const POSITION_SMOOTH = 0.45;    // 框線位置平滑係數（避免小幅晃動造成跳動）
-  const motionCanvas = document.createElement("canvas");
-  motionCanvas.width = MOTION_W; motionCanvas.height = MOTION_H;
-  const motionCtx = motionCanvas.getContext("2d", { willReadFrequently: true });
-  let lastMotionFrame = null;
-  let stableTicks = 0;
+  // 銳利度觸發參數（調鬆版：反應更快，換取略低的嚴謹度）
+  const SMALL_W = 160, SMALL_H = 90;
+  const SHARP_FLOOR = 2;          // 降低絕對下限，較暗/對比較低的畫面也能觸發
+  const SHARP_RATIO = 0.4;        // 降低比例門檻，不用等到「近期最佳」才觸發
+  const REQUIRED_SHARP_TICKS = 1; // 只需一次偵測到夠清晰就觸發，不用連續等待
+  const SCAN_TICK_DELAY = 70;
+
+  // 場景變化偵測參數（鎖定結果後，用來判斷IC是否已被移開/更換）
+  const CHANGE_THRESHOLD = 14;
+  const CHANGE_CONFIRM_TICKS = 2;
+  const LOCKED_TICK_DELAY = 150;
+
+  const smallCanvas = document.createElement("canvas");
+  smallCanvas.width = SMALL_W; smallCanvas.height = SMALL_H;
+  const smallCtx = smallCanvas.getContext("2d", { willReadFrequently: true });
+
+  let appState = "scanning"; // scanning | capturing | locked
+  let recentMaxSharpness = 0;
+  let stableSharpTicks = 0;
+  let lockedReferenceFrame = null;
+  let changeTicks = 0;
 
   let regionStates = [];
 
@@ -411,8 +418,10 @@
       applyZoom();
 
       camPlaceholder.style.display = "none";
-      // 確保 video 已有實際尺寸後才開始主迴圈
-      waitForVideoReady().then(() => scheduleTick(150));
+      waitForVideoReady().then(() => {
+        goToScanning();
+        scheduleTick(200);
+      });
     }catch(err){
       console.error(err);
       setStatus("bad", "相機錯誤");
@@ -462,10 +471,8 @@
   });
 
   resetBtn.addEventListener("click", () => {
-    regionStates = [];
-    renderAllRegionCards();
-    updateHeaderStatus();
-    showToast("已清除，重新自動偵測中...");
+    goToScanning();
+    showToast("已清除，重新等待清晰畫面...");
   });
 
   // ================= Tesseract worker =================
@@ -548,7 +555,59 @@
     rs.el.style.height = Math.max(14, Math.round(r.height)) + "px";
   }
 
-  // ================= Otsu 自動二值化（僅用於畫質強化，不再用於偵測） =================
+  // ================= 銳利度評估（Laplacian 變異數，判斷畫面是否清晰） =================
+  function computeSharpness(){
+    const rect = getCropRectForEl(zoneEl);
+    if(!rect || rect.sw <= 10 || rect.sh <= 10) return 0;
+    try{
+      smallCtx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, SMALL_W, SMALL_H);
+      const imgData = smallCtx.getImageData(0, 0, SMALL_W, SMALL_H);
+      const data = imgData.data;
+      const w = SMALL_W, h = SMALL_H;
+      const gray = new Float32Array(w * h);
+      for(let i = 0, p = 0; i < data.length; i += 4, p++){
+        gray[p] = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+      }
+      let sum = 0, sumSq = 0, count = 0;
+      for(let y = 1; y < h - 1; y++){
+        for(let x = 1; x < w - 1; x++){
+          const idx = y * w + x;
+          const lap = gray[idx-1] + gray[idx+1] + gray[idx-w] + gray[idx+w] - 4 * gray[idx];
+          sum += lap; sumSq += lap * lap; count++;
+        }
+      }
+      const mean = sum / count;
+      return Math.max(0, sumSq / count - mean * mean);
+    }catch(e){
+      return 0;
+    }
+  }
+
+  function grabSmallGrayFrame(){
+    const rect = getCropRectForEl(zoneEl);
+    if(!rect || rect.sw <= 10 || rect.sh <= 10) return null;
+    try{
+      smallCtx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, SMALL_W, SMALL_H);
+      const imgData = smallCtx.getImageData(0, 0, SMALL_W, SMALL_H);
+      const data = imgData.data;
+      const n = SMALL_W * SMALL_H;
+      const gray = new Uint8ClampedArray(n);
+      for(let i = 0, p = 0; i < data.length; i += 4, p++){
+        gray[p] = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114) | 0;
+      }
+      return gray;
+    }catch(e){
+      return null;
+    }
+  }
+  function frameDiff(a, b){
+    if(!a || !b) return 999;
+    let sum = 0;
+    for(let i = 0; i < a.length; i++) sum += Math.abs(a[i] - b[i]);
+    return sum / a.length;
+  }
+
+  // ================= Otsu 自動二值化（畫質強化用） =================
   function computeOtsuThreshold(gray, n){
     const hist = new Array(256).fill(0);
     for(let i = 0; i < n; i++) hist[gray[i]]++;
@@ -567,7 +626,6 @@
     }
     return threshold;
   }
-
   function applyOtsuBinarizeToCtx(ctx, w, h){
     try{
       const imgData = ctx.getImageData(0, 0, w, h);
@@ -595,41 +653,12 @@
     }
   }
 
-  // ================= 手震/移動偵測 =================
-  // 用一張很小的灰階縮圖比對前後兩幀的差異，判斷手機/晶片是否還在晃動。
-  // 只有畫面夠穩定時才進行昂貴的 OCR，避免拍到模糊畫面（讀不出字）以及框線亂跳。
-  function computeMotionScore(){
-    const rect = getCropRectForEl(zoneEl);
-    if(!rect || rect.sw <= 10 || rect.sh <= 10) return 999;
-    try{
-      motionCtx.drawImage(video, rect.sx, rect.sy, rect.sw, rect.sh, 0, 0, MOTION_W, MOTION_H);
-      const imgData = motionCtx.getImageData(0, 0, MOTION_W, MOTION_H);
-      const data = imgData.data;
-      const n = MOTION_W * MOTION_H;
-      const gray = new Uint8ClampedArray(n);
-      for(let i = 0, p = 0; i < data.length; i += 4, p++){
-        gray[p] = (data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114) | 0;
-      }
-      let score = 999;
-      if(lastMotionFrame){
-        let sum = 0;
-        for(let p = 0; p < n; p++) sum += Math.abs(gray[p] - lastMotionFrame[p]);
-        score = sum / n;
-      }
-      lastMotionFrame = gray;
-      return score;
-    }catch(e){
-      return 999;
-    }
-  }
-
-  // ================= 擷取整個掃描區並二值化 =================
   function captureZoneCanvas(){
     const rect = getCropRectForEl(zoneEl);
     if(!rect || rect.sw <= 10 || rect.sh <= 10) return null;
-    const targetW = 1100;
+    const targetW = 1100; // 調小一些以換取較快的辨識速度
     let upscale = targetW / rect.sw;
-    upscale = Math.max(1.0, Math.min(upscale, 4));
+    upscale = Math.max(1.0, Math.min(upscale, 5));
     const w = Math.max(1, Math.round(rect.sw * upscale));
     const h = Math.max(1, Math.round(rect.sh * upscale));
     captureCanvas.width = w; captureCanvas.height = h;
@@ -642,7 +671,6 @@
     return { canvas: captureCanvas, rect, canvasW: w, canvasH: h };
   }
 
-  // ================= 從 Tesseract 版面分析結果取出各區塊 =================
   function extractBlocks(data, capW, capH){
     const src = (data && data.blocks && data.blocks.length) ? data.blocks
               : (data && data.paragraphs && data.paragraphs.length) ? data.paragraphs
@@ -670,85 +698,136 @@
     };
   }
 
-  // ================= 區域狀態管理（依位置自動配對追蹤） =================
-  function createRegionState(){
-    return {
-      uid: uidCounter++, el: null, native: null,
-      state: "idle", candidateText: "", stableCount: 0, emptyStreak: 0,
-      lastResult: "", cmp: null, missedTicks: 0
-    };
+  function cleanText(t){
+    return t.split("\n").map(l => l.trim()).filter(l => l.replace(/[^A-Za-z0-9]/g, "").length >= 2).join("\n");
   }
 
-  function reconcileAndProcess(regions){
-    const usedOld = new Set();
-    const matched = [];
-    regions.forEach(r => {
-      const rCenterX = r.nx + r.nw / 2, rCenterY = r.ny + r.nh / 2;
-      let bestIdx = -1, bestDist = Infinity;
-      regionStates.forEach((rs, idx) => {
-        if(usedOld.has(idx) || !rs.native) return;
-        const oldCenterX = rs.native.nx + rs.native.nw / 2;
-        const oldCenterY = rs.native.ny + rs.native.nh / 2;
-        const dist = Math.hypot(oldCenterX - rCenterX, oldCenterY - rCenterY);
-        if(dist < bestDist){ bestDist = dist; bestIdx = idx; }
-      });
-      const proximityThreshold = Math.max(r.nw, r.nh) * 1.4 + 70;
-      let rs;
-      let isNew = false;
-      if(bestIdx >= 0 && bestDist < proximityThreshold){
-        usedOld.add(bestIdx);
-        rs = regionStates[bestIdx];
-      } else {
-        rs = createRegionState();
-        isNew = true;
-      }
-      if(!isNew && rs.native){
-        // 平滑過渡到新位置，避免框線因些微誤差而跳動
-        const k = POSITION_SMOOTH;
-        rs.native = {
-          nx: rs.native.nx + (r.nx - rs.native.nx) * k,
-          ny: rs.native.ny + (r.ny - rs.native.ny) * k,
-          nw: rs.native.nw + (r.nw - rs.native.nw) * k,
-          nh: rs.native.nh + (r.nh - rs.native.nh) * k
-        };
-      } else {
-        rs.native = { nx: r.nx, ny: r.ny, nw: r.nw, nh: r.nh };
-      }
-      rs.missedTicks = 0;
-      handleOcrResult(rs, r.text);
-      matched.push(rs);
-    });
-    regionStates.forEach((rs, idx) => {
-      if(usedOld.has(idx)) return;
-      rs.missedTicks = (rs.missedTicks || 0) + 1;
-      if(rs.missedTicks <= MISSING_GRACE) matched.push(rs);
-    });
-    matched.sort((a, b) => {
-      const ax = a.native ? a.native.nx : 0, bx = b.native ? b.native.nx : 0;
-      return ax - bx;
-    });
+  // ================= 主狀態機：scanning → capturing → locked =================
+  function scheduleTick(delay){
+    clearTimeout(mainTimer);
+    mainTimer = setTimeout(mainTick, delay);
+  }
 
-    const prevUids = regionStates.map(rs => rs.uid).join(",");
-    regionStates = matched;
-    const newUids = regionStates.map(rs => rs.uid).join(",");
-    return prevUids !== newUids;
+  function goToScanning(){
+    appState = "scanning";
+    regionStates = [];
+    lockedReferenceFrame = null;
+    changeTicks = 0;
+    recentMaxSharpness = 0;
+    stableSharpTicks = 0;
+    zoneEl.className = "zone-guide";
+    renderAllRegionCards();
+    updateHeaderStatus();
+  }
+
+  async function mainTick(){
+    if(!stream || !workerReady){ scheduleTick(SCAN_TICK_DELAY); return; }
+
+    if(appState === "locked"){
+      const frame = grabSmallGrayFrame();
+      if(frame && lockedReferenceFrame){
+        const diff = frameDiff(frame, lockedReferenceFrame);
+        if(diff > CHANGE_THRESHOLD){
+          changeTicks++;
+          camStatusText.textContent = `偵測到畫面變化 (${changeTicks}/${CHANGE_CONFIRM_TICKS})，準備重新掃描...`;
+          if(changeTicks >= CHANGE_CONFIRM_TICKS){
+            goToScanning();
+            scheduleTick(SCAN_TICK_DELAY);
+            return;
+          }
+        } else {
+          changeTicks = 0;
+        }
+      }
+      scheduleTick(LOCKED_TICK_DELAY);
+      return;
+    }
+
+    if(appState === "capturing"){
+      scheduleTick(SCAN_TICK_DELAY);
+      return;
+    }
+
+    // appState === "scanning"
+    const sharp = computeSharpness();
+    recentMaxSharpness = Math.max(recentMaxSharpness * 0.985, sharp);
+    const isSharpEnough = sharp > SHARP_FLOOR && sharp >= recentMaxSharpness * SHARP_RATIO;
+    if(isSharpEnough){
+      stableSharpTicks++;
+    } else {
+      stableSharpTicks = 0;
+    }
+    camStatusText.textContent = stableSharpTicks > 0
+      ? `偵測到清晰畫面，準備拍照 (${stableSharpTicks}/${REQUIRED_SHARP_TICKS})...`
+      : "掃描中，請將 IC 對準並保持穩定";
+
+    if(stableSharpTicks >= REQUIRED_SHARP_TICKS){
+      stableSharpTicks = 0;
+      appState = "capturing";
+      zoneEl.className = "zone-guide busy";
+      setStatus("busy", "辨識中");
+      camStatusText.textContent = "畫面清晰，正在辨識...";
+      doCapture();
+    }
+    scheduleTick(SCAN_TICK_DELAY);
+  }
+
+  async function doCapture(){
+    try{
+      const capture = captureZoneCanvas();
+      if(!capture){ appState = "scanning"; zoneEl.className = "zone-guide"; return; }
+      const { data } = await worker.recognize(capture.canvas);
+      const blocks = extractBlocks(data, capture.canvasW, capture.canvasH);
+      let regions = blocks.map(b => blockToRegion(b, capture)).filter(Boolean);
+      regions.sort((a, b) => b.area - a.area);
+      regions = regions.slice(0, MAX_REGIONS);
+
+      const meaningful = regions.filter(r => cleanText(r.text).replace(/\s/g, "").length >= MIN_TEXT_LEN);
+      if(meaningful.length === 0){
+        // 誤觸發（例如畫面上沒有有效文字）：回到掃描狀態，繼續等待下一次清晰畫面
+        appState = "scanning";
+        zoneEl.className = "zone-guide";
+        camStatusText.textContent = "未偵測到有效文字，繼續掃描中...";
+      } else {
+        lockAllRegions(meaningful);
+        lockedReferenceFrame = grabSmallGrayFrame();
+        changeTicks = 0;
+        appState = "locked";
+        zoneEl.className = "zone-guide locked";
+      }
+    }catch(err){
+      console.error(err);
+      appState = "scanning";
+      zoneEl.className = "zone-guide";
+    }
+    updateHeaderStatus();
+  }
+
+  function lockAllRegions(regions){
+    regionStates = regions.map(r => {
+      const rs = { uid: uidCounter++, el: null, native: { nx:r.nx, ny:r.ny, nw:r.nw, nh:r.nh }, lastResult: "", cmp: null };
+      const cleaned = cleanText(r.text);
+      rs.lastResult = cleaned;
+      rs.cmp = compareAgainstStandards(cleaned);
+      return rs;
+    });
+    regionStates.sort((a, b) => a.native.nx - b.native.nx);
+    renderAllRegionCards();
   }
 
   function lockColorClass(cmp){
-    if(!cmp) return "scanning";
+    if(!cmp) return "";
     if(cmp.kind === "green") return "ok";
     if(cmp.kind === "yellow") return "warn";
     if(cmp.kind === "red") return "bad";
-    return "scanning";
+    return "";
   }
   function badgeTextFor(rs){
-    if(rs.state === "locked" && rs.cmp){
-      if(rs.cmp.noStandards) return "無標準文字";
-      if(rs.cmp.kind === "green") return "完全符合";
-      if(rs.cmp.kind === "yellow") return "部分符合";
-      return "完全不符";
-    }
-    return "偵測中";
+    if(!rs.cmp) return "偵測中";
+    if(rs.cmp.noStandards) return "無標準文字";
+    if(rs.cmp.kind === "green") return "完全符合";
+    if(rs.cmp.kind === "yellow") return "部分符合";
+    return "完全不符";
   }
   function setSlotBadge(rs, text, kind){
     const el = document.getElementById("badge-" + rs.uid);
@@ -761,13 +840,13 @@
     scanLayer.innerHTML = "";
     resultsContainer.innerHTML = "";
     if(regionStates.length === 0){
-      resultsContainer.innerHTML = '<div class="card"><div class="placeholder-dim">尚未偵測到 IC，請將晶片置於掃描區內。</div></div>';
+      resultsContainer.innerHTML = '<div class="card"><div class="placeholder-dim">將 IC 放入掃描區並保持穩定，系統會自動拍照辨識。</div></div>';
       return;
     }
     const multi = regionStates.length > 1;
     regionStates.forEach((rs, i) => {
       const frame = document.createElement("div");
-      frame.className = "auto-frame " + lockColorClass(rs.state === "locked" ? rs.cmp : null);
+      frame.className = "auto-frame " + lockColorClass(rs.cmp);
       if(multi){
         const label = document.createElement("div");
         label.className = "slot-label";
@@ -782,7 +861,7 @@
       card.className = "card";
       card.innerHTML = `
         <h2>${multi ? ("IC " + (i + 1) + " 辨識結果") : "OCR 辨識結果"} <span class="badge" id="badge-${rs.uid}"></span></h2>
-        <div class="ocr-text empty" id="ocrText-${rs.uid}">尚無辨識結果</div>
+        <div class="ocr-text" id="ocrText-${rs.uid}"></div>
         <div class="row">
           <button class="btn primary copy-slot-btn" data-uid="${rs.uid}">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:15px;height:15px;"><rect x="9" y="9" width="13" height="13" rx="2"></rect><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"></path></svg>
@@ -790,17 +869,14 @@
           </button>
         </div>
         <div class="match-name" id="matchName-${rs.uid}" style="display:none;"></div>
-        <div id="cmpList-${rs.uid}"><div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div></div>
+        <div id="cmpList-${rs.uid}"></div>
       `;
       resultsContainer.appendChild(card);
-      setSlotBadge(rs, badgeTextFor(rs), rs.state === "locked" ? lockColorClass(rs.cmp) : null);
 
-      if(rs.state === "locked"){
-        const ocrTextEl = document.getElementById("ocrText-" + rs.uid);
-        ocrTextEl.textContent = rs.lastResult;
-        ocrTextEl.classList.remove("empty");
-        if(rs.cmp) renderComparison(rs, rs.cmp);
-      }
+      setSlotBadge(rs, badgeTextFor(rs), lockColorClass(rs.cmp));
+      const ocrTextEl = document.getElementById("ocrText-" + rs.uid);
+      ocrTextEl.textContent = rs.lastResult;
+      if(rs.cmp) renderComparison(rs, rs.cmp);
     });
 
     resultsContainer.querySelectorAll(".copy-slot-btn").forEach(btn => {
@@ -813,143 +889,25 @@
     });
   }
 
-  // ================= OCR 主迴圈 =================
-  function scheduleTick(delay){
-    clearTimeout(mainTimer);
-    mainTimer = setTimeout(mainTick, delay != null ? delay : TICK_DELAY);
-  }
-
-  async function mainTick(){
-    if(!stream || !workerReady){ scheduleTick(); return; }
-    if(isRecognizing){ scheduleTick(); return; }
-
-    const motion = computeMotionScore();
-    if(motion > MOTION_THRESHOLD){
-      stableTicks = 0;
-      setStatus("scanning", "偵測中");
-      camStatusText.textContent = "畫面還在晃動，請保持穩定...";
-      // 晃動中：仍然更新既有框線的顯示位置（跟著鏡頭走），但不做昂貴的OCR
-      regionStates.forEach(rs => updateOverlayPosition(rs));
-      scheduleTick(70);
-      return;
-    }
-    stableTicks++;
-    if(stableTicks < REQUIRED_STABLE_TICKS){
-      scheduleTick(70);
-      return;
-    }
-
-    isRecognizing = true;
-    try{
-      const capture = captureZoneCanvas();
-      if(capture){
-        const { data } = await worker.recognize(capture.canvas);
-        const blocks = extractBlocks(data, capture.canvasW, capture.canvasH);
-        let regions = blocks.map(b => blockToRegion(b, capture)).filter(Boolean);
-        regions.sort((a, b) => b.area - a.area);
-        regions = regions.slice(0, MAX_REGIONS);
-
-        const structureChanged = reconcileAndProcess(regions);
-        if(structureChanged) renderAllRegionCards();
-        else regionStates.forEach(rs => updateOverlayPosition(rs));
-      }
-    }catch(err){
-      console.error(err);
-    }
-    isRecognizing = false;
-    updateHeaderStatus();
-    scheduleTick();
-  }
-
-  function cleanText(t){
-    return t.split("\n").map(l => l.trim()).filter(l => l.replace(/[^A-Za-z0-9]/g, "").length >= 2).join("\n");
-  }
-
-  function handleOcrResult(rs, rawText){
-    const cleaned = cleanText(rawText);
-    const meaningfulLen = cleaned.replace(/\s/g, "").length;
-
-    if(rs.state === "idle"){
-      if(meaningfulLen >= MIN_TEXT_LEN){
-        if(cleaned === rs.candidateText){
-          rs.stableCount++;
-          setSlotBadge(rs, `校正中 ${rs.stableCount}/${STABLE_THRESHOLD}`, null);
-          if(rs.stableCount >= STABLE_THRESHOLD){
-            lockResult(rs, cleaned);
-            rs.candidateText = ""; rs.stableCount = 0;
-          }
-        }else{
-          rs.candidateText = cleaned; rs.stableCount = 1;
-          setSlotBadge(rs, "偵測到文字", null);
-        }
-      }else{
-        rs.candidateText = ""; rs.stableCount = 0;
-        setSlotBadge(rs, "偵測中", null);
-      }
-    }else if(rs.state === "locked"){
-      if(meaningfulLen < MIN_TEXT_LEN){
-        rs.emptyStreak++;
-        if(rs.emptyStreak >= EMPTY_STREAK_TO_RESET) resetRegionIdle(rs);
-      }else{
-        rs.emptyStreak = 0;
-      }
-    }
-  }
-
-  function lockResult(rs, text){
-    rs.state = "locked";
-    rs.emptyStreak = 0;
-    rs.lastResult = text;
-
-    const ocrTextEl = document.getElementById("ocrText-" + rs.uid);
-    if(ocrTextEl){ ocrTextEl.textContent = text; ocrTextEl.classList.remove("empty"); }
-
-    const cmp = compareAgainstStandards(text);
-    rs.cmp = cmp;
-    renderComparison(rs, cmp);
-
-    if(rs.el) rs.el.className = "auto-frame " + lockColorClass(cmp);
-  }
-
-  function resetRegionIdle(rs){
-    rs.state = "idle";
-    rs.emptyStreak = 0; rs.candidateText = ""; rs.stableCount = 0;
-    rs.lastResult = ""; rs.cmp = null;
-    if(rs.el) rs.el.className = "auto-frame scanning";
-
-    const ocrTextEl = document.getElementById("ocrText-" + rs.uid);
-    if(ocrTextEl){ ocrTextEl.textContent = "尚無辨識結果"; ocrTextEl.classList.add("empty"); }
-    setSlotBadge(rs, "偵測中", null);
-    const matchNameEl = document.getElementById("matchName-" + rs.uid);
-    if(matchNameEl) matchNameEl.style.display = "none";
-    const cmpListEl = document.getElementById("cmpList-" + rs.uid);
-    if(cmpListEl) cmpListEl.innerHTML = '<div class="placeholder-dim">辨識到文字後，將自動與標準文字逐行比對。</div>';
-  }
-
   function updateHeaderStatus(){
+    if(appState === "capturing"){
+      setStatus("busy", "辨識中");
+      return;
+    }
     if(regionStates.length === 0){
       setStatus("scanning", "掃描中");
-      if(stream) camStatusText.textContent = `尚未偵測到 IC　|　倍率 ${zoomLevel.toFixed(1)}x` + (hasHardwareZoom ? "" : " (數位)");
       return;
     }
-    let anyBad = false, anyWarn = false, allLocked = true, lockedCount = 0;
+    let anyBad = false, anyWarn = false;
     regionStates.forEach(rs => {
-      if(rs.state === "locked"){
-        lockedCount++;
-        if(rs.cmp){
-          if(rs.cmp.kind === "red") anyBad = true;
-          else if(rs.cmp.kind === "yellow") anyWarn = true;
-        }
-      }else{
-        allLocked = false;
+      if(rs.cmp){
+        if(rs.cmp.kind === "red") anyBad = true;
+        else if(rs.cmp.kind === "yellow") anyWarn = true;
       }
     });
-    let kind = "scanning", label = "掃描中";
-    if(anyBad){ kind = "bad"; label = "發現不符"; }
-    else if(anyWarn){ kind = "warn"; label = "部分符合"; }
-    else if(allLocked && lockedCount > 0){ kind = "ok"; label = "全部符合"; }
-    setStatus(kind, label);
-    camStatusText.textContent = `偵測到 ${regionStates.length} 顆　|　已鎖定 ${lockedCount}　|　倍率 ${zoomLevel.toFixed(1)}x` + (hasHardwareZoom ? "" : " (數位)");
+    if(anyBad) setStatus("bad", "發現不符");
+    else if(anyWarn) setStatus("warn", "部分符合");
+    else setStatus("ok", "全部符合");
   }
 
   // ================= 模糊比對 =================
@@ -1028,16 +986,11 @@
 
     if(cmp.noStandards){
       matchNameEl.style.display = "none";
-      setSlotBadge(rs, "無標準文字", null);
       cmpListEl.innerHTML = '<div class="placeholder-dim">請先在下方新增標準文字以進行比對。</div>';
       return;
     }
     matchNameEl.style.display = "block";
     matchNameEl.textContent = "比對對象：" + cmp.stdName;
-
-    if(cmp.kind === "green") setSlotBadge(rs, "完全符合", "ok");
-    else if(cmp.kind === "yellow") setSlotBadge(rs, "部分符合", "warn");
-    else setSlotBadge(rs, "完全不符", "bad");
 
     cmpListEl.innerHTML = "";
     cmp.lines.forEach(r => {
