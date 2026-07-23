@@ -365,17 +365,17 @@
   const MIN_TEXT_LEN = 3;
   const MAX_REGIONS = 4;
 
-  // 銳利度觸發參數（調鬆版：反應更快，換取略低的嚴謹度）
+  // 銳利度觸發參數（中庸版：反應速度與準確率取平衡）
   const SMALL_W = 160, SMALL_H = 90;
-  const SHARP_FLOOR = 2;          // 降低絕對下限，較暗/對比較低的畫面也能觸發
-  const SHARP_RATIO = 0.4;        // 降低比例門檻，不用等到「近期最佳」才觸發
-  const REQUIRED_SHARP_TICKS = 1; // 只需一次偵測到夠清晰就觸發，不用連續等待
-  const SCAN_TICK_DELAY = 70;
+  const SHARP_FLOOR = 3;          // 絕對下限
+  const SHARP_RATIO = 0.5;        // 需達到近期最佳銳利度的一半才觸發
+  const REQUIRED_SHARP_TICKS = 2; // 需連續2次偵測到清晰才觸發拍照，避免誤判
+  const SCAN_TICK_DELAY = 80;
 
   // 場景變化偵測參數（鎖定結果後，用來判斷IC是否已被移開/更換）
   const CHANGE_THRESHOLD = 14;
-  const CHANGE_CONFIRM_TICKS = 2;
-  const LOCKED_TICK_DELAY = 150;
+  const CHANGE_CONFIRM_TICKS = 3;
+  const LOCKED_TICK_DELAY = 160;
 
   const smallCanvas = document.createElement("canvas");
   smallCanvas.width = SMALL_W; smallCanvas.height = SMALL_H;
@@ -656,7 +656,7 @@
   function captureZoneCanvas(){
     const rect = getCropRectForEl(zoneEl);
     if(!rect || rect.sw <= 10 || rect.sh <= 10) return null;
-    const targetW = 1100; // 調小一些以換取較快的辨識速度
+    const targetW = 1250; // 中庸值：兼顧辨識品質與速度
     let upscale = targetW / rect.sw;
     upscale = Math.max(1.0, Math.min(upscale, 5));
     const w = Math.max(1, Math.round(rect.sw * upscale));
